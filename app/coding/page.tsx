@@ -13,54 +13,71 @@ import {
 import CodeEditor from "@/components/CodeEditor";
 import { useRouter } from 'next/router';
 
-interface CodingChallenge {
-    title: string;
-    difficulty: 'Easy' | 'Medium' | 'Hard';
-    description: string;
+interface ProblemData {
+    pid: number;                          // matches DB "pid"
+    name: string;                         // matches DB "name"
+    difficulty: 'Easy' | 'Medium' | 'Hard' | 'NULL';
+    description: string;                  // matches DB "description"
+    // optional fields if you want them:
+    // ap?: number;                       // matches DB "ap"
+    // time_constraint?: number;          // matches DB "time_constraint"
+    // mem_constraint?: number;           // matches DB "mem_constraint"
+    // author?: string;                   // matches DB "author"
+    // etc.
 }
 
 const programmingLanguages = ['C++', 'Python', 'Java', 'JavaScript'];
 
-// TODO: Get the problem data from backend and id from URL
-//  Provide PID for the right problem that we're solving
-//  Also figure out how to submit the code to the judge
-//  Add ChatGPT integration based on the result and appeared error in console or in logic
-export default function Component() {
+// TODO: Add code submission logic & ChatGPT integration
+export default function CodingPage() {
     const [code, setCode] = useState<string>('');
     const [consoleOutput, setConsoleOutput] = useState<string>('');
     const [selectedLanguage, setSelectedLanguage] = useState<string>('C++');
     const [isInitialLoad, setIsInitialLoad] = useState(true);
 
-    const [problemData, setProblemData] = useState<CodingChallenge | null>(null);
+    const [problemData, setProblemData] = useState<ProblemData | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
 
     const router = useRouter();
     const { cid, pid } = router.query;
 
+    // Fetch problem data from your backend
     useEffect(() => {
         const fetchProblemData = async () => {
             try {
-                if (!cid || !pid) return; // Wait until cid and pid are available
-
+                if (!cid || !pid) return; // Wait until both exist
                 setLoading(true);
 
                 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
-                // Fetch problem details
+                // Example endpoint: GET /problem/:cid/:pid
                 const response = await fetch(`${API_URL}/problem/${cid}/${pid}`, {
                     credentials: 'include',
                 });
                 if (!response.ok) {
                     throw new Error('Failed to fetch problem data');
                 }
-                const data = await response.json();
 
-                // Map data to your CodingChallenge interface
-                const fetchedProblem: CodingChallenge = {
-                    title: data.problem.name,
-                    difficulty: mapDifficulty(data.problem.difficulty),
-                    description: data.problem.description,
+                // Suppose the response is shaped like:
+                // {
+                //   problem: {
+                //     pid: 100,
+                //     name: "Sample Problem",
+                //     description: "Solve X, Y, Z...",
+                //     difficulty: "Medium",
+                //     ...
+                //   }
+                // }
+                const data = await response.json();
+                const rawProblem = data.problem;
+
+                // Map your DB fields to the interface
+                const fetchedProblem: ProblemData = {
+                    pid: rawProblem.pid,
+                    name: rawProblem.name,
+                    description: rawProblem.description,
+                    difficulty: mapDifficulty(rawProblem.difficulty),
                 };
 
                 setProblemData(fetchedProblem);
@@ -75,46 +92,46 @@ export default function Component() {
         fetchProblemData();
     }, [cid, pid]);
 
+    // Load user code from local storage
     useEffect(() => {
+        if (!pid) return;
         const savedCode = localStorage.getItem(`userCode_${pid}`);
         const savedLanguage = localStorage.getItem(`userLanguage_${pid}`);
 
         if (savedLanguage) {
-            console.log(savedLanguage);
             handleLanguageChange(savedLanguage);
         }
-
         if (savedCode) {
             setCode(savedCode);
         }
         setIsInitialLoad(false);
-        console.log('Set the code');
     }, [pid]);
 
+    // Auto-save user code to local storage
     useEffect(() => {
-        if (!isInitialLoad) {
-            localStorage.setItem(`userCode_${pid}`, code);
-            localStorage.setItem(`userLanguage_${pid}`, selectedLanguage);
-            console.log('Saved the code');
-        }
-    }, [code, isInitialLoad, selectedLanguage, pid]);
+        if (!pid || isInitialLoad) return;
+        localStorage.setItem(`userCode_${pid}`, code);
+        localStorage.setItem(`userLanguage_${pid}`, selectedLanguage);
+    }, [code, selectedLanguage, pid, isInitialLoad]);
 
     const handleLanguageChange = (value: string) => {
         setSelectedLanguage(value);
     };
 
     const handleRunCode = () => {
+        // Right now, just show a stub in the console output
         setConsoleOutput(`Running ${selectedLanguage} code...\n\n// Output will appear here`);
     };
 
-    const mapDifficulty = (difficulty: string): 'Easy' | 'Medium' | 'Hard' => {
+    // Convert any unexpected difficulty to 'NULL'
+    const mapDifficulty = (difficulty: string): 'Easy' | 'Medium' | 'Hard' | 'NULL' => {
         switch (difficulty) {
             case 'Easy':
             case 'Medium':
             case 'Hard':
                 return difficulty;
             default:
-                return 'Easy'; // Default to 'Easy' if difficulty is undefined
+                return 'NULL';
         }
     };
 
@@ -127,16 +144,13 @@ export default function Component() {
     }
 
     if (!problemData) {
-        return (
-            <div className="min-h-screen flex items-center justify-center">
-                No problem data available
-            </div>
-        );
+        return <div className="min-h-screen flex items-center justify-center">No problem data found.</div>;
     }
 
     return (
         <div className="min-h-screen bg-gray-100 p-4">
             <main className="max-w-7xl mx-auto">
+                {/* Contest Header */}
                 <Card className="p-4 mb-8 shadow-neumorphic">
                     <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center">
@@ -154,20 +168,29 @@ export default function Component() {
                     </div>
                 </Card>
 
+                {/* Main Content */}
                 <div className="flex gap-8">
+                    {/* Problem Statement */}
                     <Card className="flex-1 p-6 shadow-neumorphic">
-                        <h2 className="text-2xl font-bold text-red-700 mb-2">{problemData.title}</h2>
+                        <h2 className="text-2xl font-bold text-red-700 mb-2">
+                            {problemData.name} (PID: {problemData.pid})
+                        </h2>
                         <span className="inline-block bg-red-100 text-red-800 text-xs font-semibold mr-2 px-2.5 py-0.5 rounded">
               {problemData.difficulty}
             </span>
                         <p className="mt-4 whitespace-pre-wrap">{problemData.description}</p>
                     </Card>
 
+                    {/* Code Editor & Console */}
                     <div className="flex-1 space-y-4">
                         <Card className="p-6 shadow-neumorphic">
                             <div className="flex justify-between items-center mb-4">
                                 <div className="relative z-10">
-                                    <Select onValueChange={handleLanguageChange} value={selectedLanguage}>
+                                    {/* Language Select */}
+                                    <Select
+                                        onValueChange={handleLanguageChange}
+                                        value={selectedLanguage}
+                                    >
                                         <SelectTrigger className="w-[180px]">
                                             <SelectValue placeholder="Select Language" />
                                         </SelectTrigger>
@@ -180,15 +203,23 @@ export default function Component() {
                                         </SelectContent>
                                     </Select>
                                 </div>
+                                {/* Run code button */}
                                 <Button onClick={handleRunCode}>Run Code</Button>
                             </div>
+
+                            {/* Code Editor */}
                             <Card className="flex-1 p-6 shadow-neumorphic">
                                 <div className="relative h-full">
-                                    <CodeEditor value={code} onChange={setCode} language={selectedLanguage} />
+                                    <CodeEditor
+                                        value={code}
+                                        onChange={setCode}
+                                        language={selectedLanguage}
+                                    />
                                 </div>
                             </Card>
                         </Card>
 
+                        {/* Console Output */}
                         <Card className="p-6 shadow-neumorphic">
                             <h3 className="text-lg font-semibold mb-2">Console Output</h3>
                             <pre className="p-4 rounded-md overflow-x-auto border border-black">

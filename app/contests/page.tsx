@@ -6,23 +6,30 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import Link from 'next/link';
 
-// TODO: Setup right JSON backend for this page
+// We’ll repurpose your interface to match the DB fields:
+// - 'cid' => 'id'
+// - 'name' => 'title'
+// - 'type' => 'difficulty' (assuming your DB "type" is used for difficulty)
+// - 'location' => 'location'
+// - 'starts_at' => used to figure out if "startingSoon"
+// - 'category' remains a placeholder for now if not in DB
 interface Contest {
-  id: number;
-  title: string;
-  difficulty: 'Easy' | 'Normal' | 'Hard';
+  id: number;                    // from DB's cid
+  title: string;                 // from DB's name
+  difficulty: 'Easy' | 'Normal' | 'Hard';  // from DB's "type" if you store difficulty there
   startingSoon: boolean;
-  category: string;
-  location: string;
+  category: string;              // not in DB, placeholder or manual assignment
+  location: string;              // from DB's location
 }
 
+// Filters are still your custom logic
 interface Filters {
   category: string;
   difficulty: string;
   location: string;
 }
 
-export default function Component() {
+export default function ContestsPage() {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [filters, setFilters] = useState<Filters>({
     category: 'All',
@@ -36,51 +43,74 @@ export default function Component() {
   useEffect(() => {
     const fetchContests = async () => {
       try {
+        // Example: GET /info returns something like:
+        // {
+        //   contests: [
+        //     {
+        //       cid: 1,
+        //       name: "Contest 1",
+        //       type: "Easy",       // or "Normal" or "Hard" if you're storing difficulty
+        //       location: "Remote", // or "Burnaby" etc.
+        //       starts_at: "2025-01-15T10:00:00Z",
+        //       ...
+        //     },
+        //     ...
+        //   ]
+        // }
         const response = await fetch('http://localhost:5000/info', {
-          credentials: 'include', // Include cookies for session authentication // TODO: Figure this out
+          credentials: 'include',
         });
         if (!response.ok) {
           throw new Error('Failed to fetch contests');
         }
+
         const data = await response.json();
         // Map the backend data to match your Contest interface
-        const fetchedContests = data.contests.map((contest: any) => ({
+        const fetchedContests: Contest[] = data.contests.map((contest: any) => ({
           id: contest.cid,
           title: contest.name,
-          difficulty: mapDifficulty(contest.difficulty),
-          startingSoon: new Date(contest.starts_at) > new Date(), // TODO: Maybe change logic for this
-          category: contest.category || 'Algorithms', // TODO: Add categories logic to backend
-          location: contest.location || 'Remote', // TODO: Maybe add locations to backend
+          difficulty: mapDifficulty(contest.type),
+          // "startingSoon" logic:
+          // If starts_at is in the future => it's starting soon
+          startingSoon: new Date(contest.starts_at) > new Date(),
+          // "category" doesn’t exist in DB, so we manually set or default:
+          category: contest.category || 'Algorithms',
+          // "location" directly from DB or fallback:
+          location: contest.location || 'Remote',
         }));
+
         setContests(fetchedContests);
       } catch (err: any) {
         console.error(err);
         setError(err.message);
       } finally {
-        setLoading(false); // TODO: Add loading animation to the page
+        setLoading(false); // Could add a loading animation instead
       }
     };
 
     fetchContests();
   }, []);
 
-  const mapDifficulty = (difficulty: string): 'Easy' | 'Normal' | 'Hard' => {
-    switch (difficulty) {
+  // We map "type" from DB to "Easy" | "Normal" | "Hard"
+  const mapDifficulty = (typeValue: string): 'Easy' | 'Normal' | 'Hard' => {
+    switch (typeValue) {
       case 'Easy':
       case 'Normal':
       case 'Hard':
-        return difficulty;
+        return typeValue;
       default:
         return 'Normal';
     }
   };
 
-  const filteredContests = contests.filter((contest) =>
-      contest.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      (filters.category === 'All' || contest.category === filters.category) &&
-      (filters.difficulty === 'All' || contest.difficulty === filters.difficulty) &&
-      (filters.location === 'All' || contest.location === filters.location)
-  );
+  // Filter logic
+  const filteredContests = contests.filter((contest) => {
+    const matchesSearch = contest.title.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = filters.category === 'All' || contest.category === filters.category;
+    const matchesDifficulty = filters.difficulty === 'All' || contest.difficulty === filters.difficulty;
+    const matchesLocation = filters.location === 'All' || contest.location === filters.location;
+    return matchesSearch && matchesCategory && matchesDifficulty && matchesLocation;
+  });
 
   const handleFilterChange = (filterType: keyof Filters, value: string) => {
     setFilters((prev) => ({ ...prev, [filterType]: value }));
@@ -97,6 +127,7 @@ export default function Component() {
   return (
       <div className="min-h-screen bg-gray-100 p-4">
         <div className="flex gap-8">
+          {/* Sidebar Filters */}
           <aside className="w-64 bg-white p-4 rounded-lg shadow-neumorphic">
             <h2 className="text-xl font-semibold mb-4 text-red-700">Filters</h2>
             <div className="space-y-4">
@@ -121,6 +152,7 @@ export default function Component() {
             </div>
           </aside>
 
+          {/* Main Content */}
           <main className="flex-1">
             <div className="flex gap-4 mb-8">
               <Input
@@ -158,6 +190,7 @@ export default function Component() {
   );
 }
 
+// Filter Section Reusable
 interface FilterSectionProps {
   title: string;
   options: string[];
@@ -186,10 +219,10 @@ function FilterSection({ title, options, currentFilter, onFilterChange }: Filter
   );
 }
 
+// ContestCard
 interface ContestCardProps {
   contest: Contest;
 }
-
 function ContestCard({ contest }: ContestCardProps) {
   return (
       <Link href={`/contest/${contest.id}`}>

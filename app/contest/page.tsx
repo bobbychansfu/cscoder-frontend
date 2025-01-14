@@ -1,35 +1,60 @@
 "use client";
 
-// TODO: Change this page to use the contest id from the URL and maybe PID
-//  CID should be the pulled from the URL
-//  Figure out if the JSON is right
 import React, { useState, useEffect } from 'react';
 import { Card } from "@/components/ui/card";
 import { CheckCircle, XCircle } from 'lucide-react';
 import Link from "next/link";
 import { useRouter } from 'next/router';
 
+// The shape of a single problem from the DB
 interface Problem {
-    id: number;
-    name: string;
-    difficulty: 'Easy' | 'Medium' | 'Hard' | 'NULL';
-    language: string;
-    score: number;
-    solved: boolean;
+    pid: number;           // matches DB 'pid'
+    name: string;          // matches DB 'name'
+    difficulty: string;    // matches DB 'difficulty'
+    // If your DB or endpoint includes 'ap' or 'score', choose the correct one:
+    score?: number;        // from problemstatus (user-specific) OR from 'ap' in problems (problem base points)
+    status?: string;       // from problemstatus (e.g. 'correct', 'in progress', etc.)
+    // If your endpoint includes the last submission language or if you don't need it, remove this field:
+    language?: string;
 }
 
+// The shape of what we ultimately map onto the page
+interface ProblemCardItem {
+    pid: number;
+    name: string;
+    difficulty: 'Easy' | 'Medium' | 'Hard' | 'NULL';
+    score: number;
+    solved: boolean;
+    language: string;
+}
+
+// The shape of the data from your scoreboard
+interface LeaderboardEntry {
+    computing_id: string;
+    total_score: number;
+}
+
+interface ContestInfo {
+    cid: number;
+    name: string;
+    starts_at: string;
+    ends_at: string;
+    // etc. as provided by your API
+}
+
+// The shape we ultimately store in state
 interface ContestData {
     title: string;
     startTime: string;
     duration: string;
-    problems: Problem[];
+    problems: ProblemCardItem[];
     leaderboard: { name: string; score: number }[];
 }
 
-export default function Component() {
+export default function ContestPage() {
     const API_URL = 'http://localhost:5000';
     const [contestData, setContestData] = useState<ContestData | null>(null);
-    const [loading, setLoading] = useState<boolean>(true); // TODO: Add loading animation to the page
+    const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
 
     const router = useRouter();
@@ -38,45 +63,97 @@ export default function Component() {
     useEffect(() => {
         const fetchContestData = async () => {
             try {
-                if (!cid) return; // Wait until cid is available
+                if (!cid) return;
 
                 setLoading(true);
 
-                // Fetch contest details and problems
+                // 1) Fetch the contest + problems + user-problem status
                 const contestResponse = await fetch(`${API_URL}/contest/${cid}`, {
                     credentials: 'include',
                 });
                 if (!contestResponse.ok) {
                     throw new Error('Failed to fetch contest data');
                 }
-                const contestData = await contestResponse.json();
+                // Suppose the response looks like:
+                // {
+                //   contest: {
+                //     cid: 123,
+                //     name: "My Contest",
+                //     starts_at: "2025-01-06T00:00:00Z",
+                //     ends_at: "2025-01-06T02:00:00Z",
+                //     ...
+                //   },
+                //   contestProblemsStatus: [
+                //     {
+                //       pid: 1,
+                //       name: "Problem A",
+                //       difficulty: "Easy",
+                //       score: 100,          // from problemstatus or problems.ap
+                //       status: "correct",   // from problemstatus
+                //       language: "cpp",     // possibly from last submission
+                //     },
+                //     ...
+                //   ]
+                // }
+                const contestJson = await contestResponse.json();
 
-                // Fetch leaderboard data
+                // 2) Fetch the leaderboard data
                 const leaderboardResponse = await fetch(`${API_URL}/scoreboard/${cid}`, {
                     credentials: 'include',
                 });
                 if (!leaderboardResponse.ok) {
                     throw new Error('Failed to fetch leaderboard data');
                 }
-                const leaderboardData = await leaderboardResponse.json();
+                // Suppose the scoreboard returns something like:
+                // {
+                //   contest: {
+                //     cid: 123,
+                //     name: "My Contest",
+                //     starts_at: "...",
+                //     ends_at: "...",
+                //   },
+                //   allStatus: [
+                //     {
+                //       user: { computing_id: "abc1de" },
+                //       total_score: 300
+                //     },
+                //     {
+                //       user: { computing_id: "abc2de" },
+                //       total_score: 200
+                //     },
+                //     ...
+                //   ]
+                // }
+                const leaderboardJson = await leaderboardResponse.json();
 
-                // Map data to your ContestData interface
+                // We’ll extract the shared contest info from either response
+                const contest: ContestInfo = leaderboardJson.contest; // or from contestJson.contest
+
+                // Convert the array of problems into your front-end shape
+                const problems: ProblemCardItem[] = contestJson.contestProblemsStatus.map((problem: Problem) => ({
+                    pid: problem.pid,
+                    name: problem.name,
+                    difficulty: mapDifficulty(problem.difficulty),
+                    language: problem.language || 'N/A',
+                    // If your endpoint includes user-specific score from 'problemstatus.score' or the base
+                    // problem 'ap' from 'problems', pick the correct field:
+                    score: problem.score ?? 0,
+                    solved: problem.status === 'correct',
+                }));
+
+                // Convert leaderboard data
+                const leaderboard = leaderboardJson.allStatus.map((entry: any) => ({
+                    name: entry.user?.computing_id || 'Unknown',
+                    score: entry.total_score,
+                }));
+
+                // Build the final contest data object
                 const mappedContestData: ContestData = {
-                    title: leaderboardData.contest.name,
-                    startTime: `Starts: ${new Date(leaderboardData.contest.starts_at).toLocaleString()}`, // TODO: CHANGE THIS STUFF
-                    duration: `Ends: ${new Date(leaderboardData.contest.ends_at).toLocaleString()}`,
-                    problems: contestData.contestProblemsStatus.map((problem: any) => ({
-                        id: problem.pid,
-                        name: problem.name,
-                        difficulty: mapDifficulty(problem.difficulty),
-                        language: problem.language || 'N/A',
-                        score: problem.score,
-                        solved: problem.status === 'correct',
-                    })),
-                    leaderboard: leaderboardData.allStatus.map((entry: any) => ({
-                        name: entry.user.computing_id,
-                        score: entry.total_score,
-                    })),
+                    title: contest.name,
+                    startTime: `Starts: ${new Date(contest.starts_at).toLocaleString()}`,
+                    duration: `Ends: ${new Date(contest.ends_at).toLocaleString()}`,
+                    problems,
+                    leaderboard,
                 };
 
                 setContestData(mappedContestData);
@@ -91,6 +168,7 @@ export default function Component() {
         fetchContestData();
     }, [cid]);
 
+    // Helper to map DB "difficulty" strings to your typed union
     const mapDifficulty = (difficulty: string): 'Easy' | 'Medium' | 'Hard' | 'NULL' => {
         switch (difficulty) {
             case 'Easy':
@@ -117,13 +195,16 @@ export default function Component() {
     const totalProblems = contestData.problems.length;
     const solvedProblems = contestData.problems.filter((p) => p.solved).length;
     const progress = (solvedProblems / totalProblems) * 100;
+    const totalScore = contestData.problems.reduce((sum, p) => sum + p.score, 0);
 
     return (
         <div className="min-h-screen bg-gray-100 p-4">
             <main className="max-w-7xl mx-auto">
                 <Card className="p-4 mb-8 shadow-neumorphic">
                     <div className="flex justify-between items-center mb-4">
-                        <h1 className="text-2xl font-bold text-red-700">{contestData.title}</h1>
+                        <h1 className="text-2xl font-bold text-red-700">
+                            {contestData.title}
+                        </h1>
                         <div className="text-sm text-gray-600">
                             <span className="mr-4">{contestData.startTime}</span>
                             <span>{contestData.duration}</span>
@@ -138,37 +219,40 @@ export default function Component() {
                 </Card>
 
                 <div className="flex gap-8">
+                    {/* Problems Section */}
                     <div className="flex-grow space-y-4">
-                        {/* First Half of Problems */}
+                        {/* First half of the problems */}
                         <Card className="p-4 shadow-neumorphic">
                             <h2 className="text-xl font-bold text-red-700 mb-4">Problems</h2>
                             <div className="text-sm text-gray-600 mb-4">
-                                Tries: {solvedProblems}/{totalProblems} Score:{' '}
-                                {contestData.problems.reduce((sum, p) => sum + p.score, 0)}
+                                Tries: {solvedProblems}/{totalProblems} | Score: {totalScore}
                             </div>
                             <div className="space-y-2">
-                                {contestData.problems.slice(0, Math.ceil(totalProblems / 2)).map((problem) => (
-                                    <ProblemItem key={problem.id} problem={problem} />
-                                ))}
+                                {contestData.problems
+                                    .slice(0, Math.ceil(totalProblems / 2))
+                                    .map((problem) => (
+                                        <ProblemItem key={problem.pid} problem={problem} />
+                                    ))}
                             </div>
                         </Card>
 
-                        {/* Second Half of Problems */}
+                        {/* Second half of the problems */}
                         <Card className="p-4 shadow-neumorphic">
                             <h2 className="text-xl font-bold text-red-700 mb-4">Problems</h2>
                             <div className="text-sm text-gray-600 mb-4">
-                                Tries: {solvedProblems}/{totalProblems} Score:{' '}
-                                {contestData.problems.reduce((sum, p) => sum + p.score, 0)}
+                                Tries: {solvedProblems}/{totalProblems} | Score: {totalScore}
                             </div>
                             <div className="space-y-2">
-                                {contestData.problems.slice(Math.ceil(totalProblems / 2)).map((problem) => (
-                                    <ProblemItem key={problem.id} problem={problem} />
-                                ))}
+                                {contestData.problems
+                                    .slice(Math.ceil(totalProblems / 2))
+                                    .map((problem) => (
+                                        <ProblemItem key={problem.pid} problem={problem} />
+                                    ))}
                             </div>
                         </Card>
                     </div>
 
-                    {/* Leaderboard */}
+                    {/* Leaderboard Section */}
                     <Card className="w-64 p-4 shadow-neumorphic h-fit">
                         <h2 className="text-xl font-bold text-red-700 mb-4">LEADERBOARD</h2>
                         <div className="space-y-2">
@@ -185,7 +269,7 @@ export default function Component() {
     );
 }
 
-function ProblemItem({ problem }: { problem: Problem }) {
+function ProblemItem({ problem }: { problem: ProblemCardItem }) {
     const [isHovered, setIsHovered] = useState(false);
 
     const difficultyColor = {
@@ -203,7 +287,7 @@ function ProblemItem({ problem }: { problem: Problem }) {
     }[problem.difficulty];
 
     return (
-        <Link href={`/coding/${problem.id}`}>
+        <Link href={`/coding/${problem.pid}`}>
             <div
                 className={`flex items-center justify-between p-2 bg-white rounded-lg shadow-sm transition-colors duration-200 border ${difficultyColor} ${
                     isHovered ? 'border-opacity-100' : 'border-opacity-0'
@@ -217,7 +301,9 @@ function ProblemItem({ problem }: { problem: Problem }) {
                     <XCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
                 )}
                 <div className="flex-grow ml-2 truncate">{problem.name}</div>
-                <div className={`mx-2 ${textColor} flex-shrink-0`}>{problem.difficulty}</div>
+                <div className={`mx-2 ${textColor} flex-shrink-0`}>
+                    {problem.difficulty}
+                </div>
                 <div className="mx-2 flex-shrink-0">{problem.language}</div>
                 <div className="text-red-600 flex-shrink-0">{problem.score}</div>
             </div>
