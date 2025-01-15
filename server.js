@@ -19,21 +19,13 @@ const io = new Server(httpServer, {
 
 app.prepare().then(() => {
   
-  // This middleware (or route) will check if there is a `ticket` parameter.
-  // If so, you can choose to redirect or to proxy the request.
   server.get('/', async (req, res, next) => {
     if (req.query.ticket) {
       try {
-        // OPTION A) Simple redirect to backend:
-        // return res.redirect(`http://localhost:5000/?ticket=${req.query.ticket}`);
-
-        // OPTION B) Proxy the request (fetch from backend and return response):
         const backendResponse = await axios.get(`http://localhost:5000/?ticket=${req.query.ticket}`, {
-          // optionally, you can pass along cookies or headers
-          // headers: { Cookie: req.headers.cookie }
+           headers: { Cookie: req.headers.cookie }
         });
         
-        // For example, just send the backend’s data back to your user
         return res.send(backendResponse.data);
 
       } catch (error) {
@@ -41,19 +33,16 @@ app.prepare().then(() => {
         return res.status(500).send('Something went wrong.');
       }
     } else {
-      // no ticket => continue with Next’s default handler
       next();
     }
   });
 
-  // Make sure this is defined *after* your ticket-handling route:
   server.get('*', (req, res) => {
     return handle(req, res);
   });
 
   server.use(express.static('public'));
 
-  // socket.io stuff
   io.on('connection', (socket) => {
     console.log('A user connected');
     const heartbeatInterval = setInterval(() => {
