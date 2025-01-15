@@ -6,13 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import Link from 'next/link';
 
-// We’ll repurpose your interface to match the DB fields:
-// - 'cid' => 'id'
-// - 'name' => 'title'
-// - 'type' => 'difficulty' (assuming your DB "type" is used for difficulty)
-// - 'location' => 'location'
-// - 'starts_at' => used to figure out if "startingSoon"
-// - 'category' remains a placeholder for now if not in DB
 interface Contest {
   id: number;                    // from DB's cid
   title: string;                 // from DB's name
@@ -43,20 +36,6 @@ export default function ContestsPage() {
   useEffect(() => {
     const fetchContests = async () => {
       try {
-        // Example: GET /info returns something like:
-        // {
-        //   contests: [
-        //     {
-        //       cid: 1,
-        //       name: "Contest 1",
-        //       type: "Easy",       // or "Normal" or "Hard" if you're storing difficulty
-        //       location: "Remote", // or "Burnaby" etc.
-        //       starts_at: "2025-01-15T10:00:00Z",
-        //       ...
-        //     },
-        //     ...
-        //   ]
-        // }
         const response = await fetch('http://localhost:5000/info', {
           credentials: 'include',
         });

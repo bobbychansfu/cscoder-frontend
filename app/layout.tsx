@@ -7,8 +7,6 @@ import Link from "next/link";
 import React, {useEffect, useRef, useState} from "react";
 import { io, Socket } from "socket.io-client";
 
-// TODO: Figure out if this is the right way of making the socket connection
-//  Maybe change to bringing the socket with cookies or something
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
   variable: "--font-geist-sans",
@@ -28,28 +26,9 @@ export default function RootLayout({
     const socketRef = useRef<Socket | null>(null);
     const [userLoggedIn, setUserLoggedIn] = useState(false);
     const [userName, setUserName] = useState(""); // Update this stuff when logged in
-    // TODO: Also figure out if you can communicate between layout.tsx and page.tsx
 
     useEffect(() => {
-            socketRef.current = io("https://coder.cmpt.sfu.ca/");
-
-            socketRef.current.on("connect", () => {
-                console.log("Connected to server with ID:", socketRef.current?.id);
-            });
-
-            socketRef.current.on('heartbeat', () => {
-                // @ts-ignore
-                socketRef.current.emit('heartbeat');
-                console.log("Got a heartbeat!");
-            });
-
-            socketRef.current.on("disconnect", () => {
-                console.log("Disconnected from server");
-            });
-
-        return () => {
-            socketRef.current?.disconnect();
-        };
+    	
     }, []);
 
   return (
@@ -62,7 +41,7 @@ export default function RootLayout({
           <div className="text-3xl font-bold text-red-700 cursor-pointer">CS-CODER</div>
         </Link>
           // TODO: Change this ling to logging in or getting into your profile
-        <Link href={`/user/${userLoggedIn ? userName : ""}`}>
+        <Link href={`/user/${userLoggedIn ? userName : "https://cas.sfu.ca/cas/login?service=http%3A%2F%2Fcoder.cmpt.sfu.ca%2F"}`}>
             // TODO: Add SFU login AND change if the user is logged in
           <Button className="bg-white hover:bg-gray-200 text-red-700 px-8 py-3 rounded-lg text-lg font-semibold transition-colors duration-300">
             {userLoggedIn ? userName : "Log In"}
