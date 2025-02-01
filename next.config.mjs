@@ -1,10 +1,6 @@
-// /** @type {import('next').NextConfig} */
-// const nextConfig = {};
-//
-// module.exports = {
-//     experimental: {
-//         nextScriptWorkers: true,
-//     },
-// };
-//
-// export default nextConfig;
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+    reactStrictMode: false
+}
+
+export default nextConfig

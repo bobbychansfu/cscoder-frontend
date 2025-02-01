@@ -1,10 +1,11 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, {useState, useEffect, useMemo} from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import Link from 'next/link';
+// import {useRouter} from "next/navigation";
 
 interface Contest {
   id: number;                    // from DB's cid
@@ -15,7 +16,6 @@ interface Contest {
   location: string;              // from DB's location
 }
 
-// Filters are still your custom logic
 interface Filters {
   category: string;
   difficulty: string;
@@ -32,42 +32,39 @@ export default function ContestsPage() {
   const [contests, setContests] = useState<Contest[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  // const router = useRouter(); MIGHT USE LATER TO REDIRECT GUESTS TO LOGIN PAGE
 
   useEffect(() => {
-    const fetchContests = async () => {
-      try {
-        const response = await fetch('http://localhost:5000/info', {
-          credentials: 'include',
+    fetch(`/api/contests`, {
+      credentials: 'include',
+    })
+        .then(async (res) => {
+          if (!res.ok) {
+            const { error } = await res.json();
+            console.error('Contests pull error:', error);
+            return;
+          }
+          const data = await res.json();
+
+          // Map the response to Contest interface
+          const fetchedContests: Contest[] = data.contests.map((contest: any) => ({
+            id: contest.cid,
+            title: contest.name,
+            difficulty: mapDifficulty(contest.type),
+            startingSoon: new Date(contest.starts_at) > new Date(),
+            category: contest.category || 'Algorithms',
+            location: contest.location || 'Remote',
+          }));
+
+          setContests(fetchedContests);
+        })
+        .catch(err => {
+          console.error('Fetch error:', err);
+          setError(err.message);
+        })
+        .finally(() => {
+          setLoading(false);
         });
-        if (!response.ok) {
-          throw new Error('Failed to fetch contests');
-        }
-
-        const data = await response.json();
-        // Map the backend data to match your Contest interface
-        const fetchedContests: Contest[] = data.contests.map((contest: any) => ({
-          id: contest.cid,
-          title: contest.name,
-          difficulty: mapDifficulty(contest.type),
-          // "startingSoon" logic:
-          // If starts_at is in the future => it's starting soon
-          startingSoon: new Date(contest.starts_at) > new Date(),
-          // "category" doesn’t exist in DB, so we manually set or default:
-          category: contest.category || 'Algorithms',
-          // "location" directly from DB or fallback:
-          location: contest.location || 'Remote',
-        }));
-
-        setContests(fetchedContests);
-      } catch (err: any) {
-        console.error(err);
-        setError(err.message);
-      } finally {
-        setLoading(false); // Could add a loading animation instead
-      }
-    };
-
-    fetchContests();
   }, []);
 
   // We map "type" from DB to "Easy" | "Normal" | "Hard"
@@ -83,13 +80,15 @@ export default function ContestsPage() {
   };
 
   // Filter logic
-  const filteredContests = contests.filter((contest) => {
-    const matchesSearch = contest.title.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory = filters.category === 'All' || contest.category === filters.category;
-    const matchesDifficulty = filters.difficulty === 'All' || contest.difficulty === filters.difficulty;
-    const matchesLocation = filters.location === 'All' || contest.location === filters.location;
-    return matchesSearch && matchesCategory && matchesDifficulty && matchesLocation;
-  });
+  const filteredContests = useMemo(() => {
+    return contests.filter((contest) => {
+      const matchesSearch = contest.title.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = filters.category === 'All' || contest.category === filters.category;
+      const matchesDifficulty = filters.difficulty === 'All' || contest.difficulty === filters.difficulty;
+      const matchesLocation = filters.location === 'All' || contest.location === filters.location;
+      return matchesSearch && matchesCategory && matchesDifficulty && matchesLocation;
+    });
+  }, [contests, searchTerm, filters]);
 
   const handleFilterChange = (filterType: keyof Filters, value: string) => {
     setFilters((prev) => ({ ...prev, [filterType]: value }));
@@ -185,7 +184,7 @@ function FilterSection({ title, options, currentFilter, onFilterChange }: Filter
           {options.map((option) => (
               <li
                   key={option}
-                  className={`cursor-pointer ${
+                  className={`cursor-pointer hover:underline ${
                       currentFilter === option ? 'text-green-600' : 'text-gray-600'
                   }`}
                   onClick={() => onFilterChange(option)}

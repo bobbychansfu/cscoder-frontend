@@ -1,24 +1,20 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import { Card } from "@/components/ui/card";
-import { CheckCircle, XCircle } from 'lucide-react';
+import React, {useState, useEffect} from 'react';
+import {Card} from "@/components/ui/card";
+import {CheckCircle, XCircle} from 'lucide-react';
 import Link from "next/link";
-import { useRouter } from 'next/router';
+import {useParams} from "next/navigation";
 
-// The shape of a single problem from the DB
 interface Problem {
     pid: number;           // matches DB 'pid'
     name: string;          // matches DB 'name'
     difficulty: string;    // matches DB 'difficulty'
-    // If your DB or endpoint includes 'ap' or 'score', choose the correct one:
     score?: number;        // from problemstatus (user-specific) OR from 'ap' in problems (problem base points)
     status?: string;       // from problemstatus (e.g. 'correct', 'in progress', etc.)
-    // If your endpoint includes the last submission language or if you don't need it, remove this field:
     language?: string;
 }
 
-// The shape of what we ultimately map onto the page
 interface ProblemCardItem {
     pid: number;
     name: string;
@@ -28,7 +24,6 @@ interface ProblemCardItem {
     language: string;
 }
 
-// The shape of the data from your scoreboard
 interface LeaderboardEntry {
     computing_id: string;
     total_score: number;
@@ -39,10 +34,8 @@ interface ContestInfo {
     name: string;
     starts_at: string;
     ends_at: string;
-    // etc. as provided by your API
 }
 
-// The shape we ultimately store in state
 interface ContestData {
     title: string;
     startTime: string;
@@ -52,13 +45,10 @@ interface ContestData {
 }
 
 export default function ContestPage() {
-    const API_URL = 'http://localhost:5000';
+    const {cid} = useParams();
     const [contestData, setContestData] = useState<ContestData | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
-
-    const router = useRouter();
-    const { cid } = router.query;
 
     useEffect(() => {
         const fetchContestData = async () => {
@@ -67,87 +57,38 @@ export default function ContestPage() {
 
                 setLoading(true);
 
-                // 1) Fetch the contest + problems + user-problem status
-                const contestResponse = await fetch(`${API_URL}/contest/${cid}`, {
+                const contestResponse = await fetch(`api/contest/${cid}`, {
                     credentials: 'include',
                 });
                 if (!contestResponse.ok) {
                     throw new Error('Failed to fetch contest data');
                 }
-                // Suppose the response looks like:
-                // {
-                //   contest: {
-                //     cid: 123,
-                //     name: "My Contest",
-                //     starts_at: "2025-01-06T00:00:00Z",
-                //     ends_at: "2025-01-06T02:00:00Z",
-                //     ...
-                //   },
-                //   contestProblemsStatus: [
-                //     {
-                //       pid: 1,
-                //       name: "Problem A",
-                //       difficulty: "Easy",
-                //       score: 100,          // from problemstatus or problems.ap
-                //       status: "correct",   // from problemstatus
-                //       language: "cpp",     // possibly from last submission
-                //     },
-                //     ...
-                //   ]
-                // }
                 const contestJson = await contestResponse.json();
 
-                // 2) Fetch the leaderboard data
-                const leaderboardResponse = await fetch(`${API_URL}/scoreboard/${cid}`, {
+                const leaderboardResponse = await fetch(`api/scoreboard/${cid}`, {
                     credentials: 'include',
                 });
                 if (!leaderboardResponse.ok) {
                     throw new Error('Failed to fetch leaderboard data');
                 }
-                // Suppose the scoreboard returns something like:
-                // {
-                //   contest: {
-                //     cid: 123,
-                //     name: "My Contest",
-                //     starts_at: "...",
-                //     ends_at: "...",
-                //   },
-                //   allStatus: [
-                //     {
-                //       user: { computing_id: "abc1de" },
-                //       total_score: 300
-                //     },
-                //     {
-                //       user: { computing_id: "abc2de" },
-                //       total_score: 200
-                //     },
-                //     ...
-                //   ]
-                // }
                 const leaderboardJson = await leaderboardResponse.json();
 
-                // We’ll extract the shared contest info from either response
-                const contest: ContestInfo = leaderboardJson.contest; // or from contestJson.contest
+                const contest: ContestInfo = leaderboardJson.contest;
 
-                // Convert the array of problems into your front-end shape
                 const problems: ProblemCardItem[] = contestJson.contestProblemsStatus.map((problem: Problem) => ({
                     pid: problem.pid,
                     name: problem.name,
                     difficulty: mapDifficulty(problem.difficulty),
                     language: problem.language || 'N/A',
-                    // If your endpoint includes user-specific score from 'problemstatus.score' or the base
-                    // problem 'ap' from 'problems', pick the correct field:
                     score: problem.score ?? 0,
                     solved: problem.status === 'correct',
                 }));
 
-                // Convert leaderboard data
                 const leaderboard = leaderboardJson.allStatus.map((entry: any) => ({
                     name: entry.user?.computing_id || 'Unknown',
                     score: entry.total_score,
                 }));
 
-                // Build the final contest data object
                 const mappedContestData: ContestData = {
                     title: contest.name,
                     startTime: `Starts: ${new Date(contest.starts_at).toLocaleString()}`,
@@ -165,7 +106,7 @@ export default function ContestPage() {
             }
         };
 
-        fetchContestData();
+        fetchContestData().then(r => console.log(r));
     }, [cid]);
 
     // Helper to map DB "difficulty" strings to your typed union
@@ -213,7 +154,7 @@ export default function ContestPage() {
                     <div className="w-full bg-gray-200 rounded-full h-2.5">
                         <div
                             className="bg-red-600 h-2.5 rounded-full"
-                            style={{ width: `${progress}%` }}
+                            style={{width: `${progress}%`}}
                         ></div>
                     </div>
                 </Card>
@@ -231,7 +172,7 @@ export default function ContestPage() {
                                 {contestData.problems
                                     .slice(0, Math.ceil(totalProblems / 2))
                                     .map((problem) => (
-                                        <ProblemItem key={problem.pid} problem={problem} />
+                                        <ProblemItem key={problem.pid} problem={problem}/>
                                     ))}
                             </div>
                         </Card>
@@ -246,7 +187,7 @@ export default function ContestPage() {
                                 {contestData.problems
                                     .slice(Math.ceil(totalProblems / 2))
                                     .map((problem) => (
-                                        <ProblemItem key={problem.pid} problem={problem} />
+                                        <ProblemItem key={problem.pid} problem={problem}/>
                                     ))}
                             </div>
                         </Card>
@@ -269,7 +210,7 @@ export default function ContestPage() {
     );
 }
 
-function ProblemItem({ problem }: { problem: ProblemCardItem }) {
+function ProblemItem({problem}: { problem: ProblemCardItem }) {
     const [isHovered, setIsHovered] = useState(false);
 
     const difficultyColor = {
@@ -287,7 +228,7 @@ function ProblemItem({ problem }: { problem: ProblemCardItem }) {
     }[problem.difficulty];
 
     return (
-        <Link href={`/coding/${problem.pid}`}>
+        <Link href={`/app/contest/%5Bcid%5D/coding/${problem.pid}`}>
             <div
                 className={`flex items-center justify-between p-2 bg-white rounded-lg shadow-sm transition-colors duration-200 border ${difficultyColor} ${
                     isHovered ? 'border-opacity-100' : 'border-opacity-0'
@@ -296,9 +237,9 @@ function ProblemItem({ problem }: { problem: ProblemCardItem }) {
                 onMouseLeave={() => setIsHovered(false)}
             >
                 {problem.solved ? (
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0"/>
                 ) : (
-                    <XCircle className="w-5 h-5 text-red-500 flex-shrink-0" />
+                    <XCircle className="w-5 h-5 text-red-500 flex-shrink-0"/>
                 )}
                 <div className="flex-grow ml-2 truncate">{problem.name}</div>
                 <div className={`mx-2 ${textColor} flex-shrink-0`}>
