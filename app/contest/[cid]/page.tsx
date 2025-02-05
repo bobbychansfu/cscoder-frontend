@@ -55,9 +55,10 @@ export default function ContestPage() {
             try {
                 if (!cid) return;
 
+		console.log(cid);
                 setLoading(true);
 
-                const contestResponse = await fetch(`api/contest/${cid}`, {
+                const contestResponse = await fetch(`/api/contest/${cid}`, {
                     credentials: 'include',
                 });
                 if (!contestResponse.ok) {
@@ -65,7 +66,7 @@ export default function ContestPage() {
                 }
                 const contestJson = await contestResponse.json();
 
-                const leaderboardResponse = await fetch(`api/scoreboard/${cid}`, {
+                const leaderboardResponse = await fetch(`/api/scoreboard/${cid}`, {
                     credentials: 'include',
                 });
                 if (!leaderboardResponse.ok) {

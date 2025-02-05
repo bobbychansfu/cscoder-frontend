@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import Link from 'next/link';
-// import {useRouter} from "next/navigation";
 
 interface Contest {
   id: number;                    // from DB's cid
@@ -32,7 +31,6 @@ export default function ContestsPage() {
   const [contests, setContests] = useState<Contest[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  // const router = useRouter(); MIGHT USE LATER TO REDIRECT GUESTS TO LOGIN PAGE
 
   useEffect(() => {
     fetch(`/api/contests`, {
@@ -46,15 +44,26 @@ export default function ContestsPage() {
           }
           const data = await res.json();
 
-          // Map the response to Contest interface
-          const fetchedContests: Contest[] = data.contests.map((contest: any) => ({
+		console.log(data.contests);
+		console.log(data);
+          const fetchedContests: Contest[] = [
+	  ...data.contests.map((contest: any) => ({
             id: contest.cid,
             title: contest.name,
             difficulty: mapDifficulty(contest.type),
             startingSoon: new Date(contest.starts_at) > new Date(),
             category: contest.category || 'Algorithms',
             location: contest.location || 'Remote',
-          }));
+          })),
+	  ...data.contestsOpen.map((contest: any) => ({
+            id: contest.cid,
+            title: contest.name,
+            difficulty: mapDifficulty(contest.type),
+            startingSoon: new Date(contest.starts_at) > new Date(),
+            category: contest.category || 'Algorithms',
+            location: contest.location || 'Remote',
+          }))
+	  ];
 
           setContests(fetchedContests);
         })

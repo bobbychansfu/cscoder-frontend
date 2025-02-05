@@ -4,10 +4,12 @@ export async function GET(req: NextRequest, {params}: { params: { cid: string } 
     try {
         const {cid} = params;
 
-        const backendRes = await fetch(`http://localhost:5000/contest/${cid}`, {
+	console.log('Received headers:', req.headers.get('cookie'));
+        const backendRes = await fetch(`http://localhost:5000/s/contest/${cid}`, {
             headers: {
                 Cookie: req.headers.get('cookie') || '',
             },
+	    credentials: 'include'
         });
 
         if (!backendRes.ok) {
@@ -19,6 +21,7 @@ export async function GET(req: NextRequest, {params}: { params: { cid: string } 
         }
 
         const data = await backendRes.json();
+	console.log(data);
         return NextResponse.json(data);
     } catch (err) {
         console.error('[Contest API] Error:', err);

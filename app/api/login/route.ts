@@ -8,14 +8,20 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-        console.log(ticket);
-        const backendRes = await fetch('http://localhost:5000/?ticket=${ticket}', {
+        const backendRes = await fetch(`http://localhost:5000/?ticket=${ticket}`, {
             headers: { Cookie: req.headers.get('cookie') || '' },
         });
 
-        const resBody = await backendRes.json();
+	if (!backendRes.ok) {
+		const errorData = await backendRes.json();
+		console.log('Error response: ', errorData);
+		return NextResponse.json({error: 'Backend Error', details: errorData}, {status: backendRes.status });
+	}
 
-        const setCookie = resBody.headers.get('set-cookie');
+        const resBody = await backendRes.json();
+	console.log(resBody);
+
+        const setCookie = backendRes.headers.get('set-cookie');
 
         const nextRes = NextResponse.json(resBody);
 

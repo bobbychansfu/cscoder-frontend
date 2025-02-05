@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(req: NextRequest) {
     try {
-        const backendRes = await fetch('http://localhost:5000/info', {
+        const backendRes = await fetch('http://localhost:5000/i/info', {
             headers: {
                 Cookie: req.headers.get('cookie') || '',
             },
+	    credentials: 'include',
         });
+	console.log(backendRes);
 
         if (!backendRes.ok) {
             const errorData = await backendRes.json();
@@ -17,9 +19,11 @@ export async function GET(req: NextRequest) {
         }
 
         const data = await backendRes.json();
+	console.log(data);
 
         return NextResponse.json({
-            contests: data.contests
+            contests: data.contests,
+	    contestsOpen: data.contestsOpen
         });
 
     } catch (err) {
