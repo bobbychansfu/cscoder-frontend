@@ -28,8 +28,7 @@ export default function UserAccount() {
     const [userData, setUserData] = useState<UserData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-
-    // 1) Fetch user data from our Next.js API route on mount
+    // Also get the registered and scores from them contests
     useEffect(() => {
         setLoading(true);
         fetch(`/api/user/${userid}`, {
@@ -37,7 +36,6 @@ export default function UserAccount() {
         })
             .then(async (res) => {
                 if (!res.ok) {
-                    // parse the error from response
                     const errData = await res.json();
                     throw new Error(errData.error || "Failed to fetch user data");
                 }

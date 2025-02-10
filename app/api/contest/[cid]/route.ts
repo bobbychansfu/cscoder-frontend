@@ -3,8 +3,12 @@ import {NextRequest, NextResponse} from 'next/server';
 export async function GET(req: NextRequest, {params}: { params: { cid: string } }) {
     try {
         const {cid} = params;
+	const registerRes = await fetch(`http://localhost:5000/s/contest/register/${cid}`, {
+				       headers: {
+				       Cookie: req.headers.get('cookie') || '},
+				       credentials: 'include'
+	});
 
-	console.log('Received headers:', req.headers.get('cookie'));
         const backendRes = await fetch(`http://localhost:5000/s/contest/${cid}`, {
             headers: {
                 Cookie: req.headers.get('cookie') || '',
