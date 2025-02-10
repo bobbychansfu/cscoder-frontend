@@ -3,17 +3,18 @@ import {NextRequest, NextResponse} from 'next/server';
 export async function GET(req: NextRequest, {params}: { params: { cid: string } }) {
     try {
         const {cid} = params;
-	const registerRes = await fetch(`http://localhost:5000/s/contest/register/${cid}`, {
-				       headers: {
-				       Cookie: req.headers.get('cookie') || '},
-				       credentials: 'include'
-	});
+        const registerRes = await fetch(`http://localhost:5000/s/contest/register/${cid}`, {
+            headers: {
+                Cookie: req.headers.get('cookie') || ''
+            },
+            credentials: 'include'
+        });
 
         const backendRes = await fetch(`http://localhost:5000/s/contest/${cid}`, {
             headers: {
                 Cookie: req.headers.get('cookie') || '',
             },
-	    credentials: 'include'
+            credentials: 'include'
         });
 
         if (!backendRes.ok) {
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest, {params}: { params: { cid: string } 
         }
 
         const data = await backendRes.json();
-	console.log(data);
+        console.log(data);
         return NextResponse.json(data);
     } catch (err) {
         console.error('[Contest API] Error:', err);

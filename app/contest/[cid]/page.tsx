@@ -55,7 +55,7 @@ export default function ContestPage() {
             try {
                 if (!cid) return;
 
-		console.log(cid);
+                console.log(cid);
                 setLoading(true);
 
                 const contestResponse = await fetch(`/api/contest/${cid}`, {
