@@ -7,8 +7,12 @@ export async function GET(
     try {
         const { cid, pid } = params;
         const cookie = req.headers.get("cookie") ?? "";
-        const backendRes = await fetch(`http://localhost:5000/contest/${cid}/problem/${pid}`, {
-            headers: { Cookie: cookie },
+        
+        const backendRes = await fetch(`http://localhost:5000/s/problem/${cid}/${pid}`, {
+            headers: { 
+                Cookie: cookie 
+            },
+            credentials: 'include'
         });
 
         if (!backendRes.ok) {
@@ -20,7 +24,18 @@ export async function GET(
         }
 
         const data = await backendRes.json();
-        return NextResponse.json(data, { status: 200 });
+        
+        const transformedData = {
+            pid: parseInt(pid),
+            cid: parseInt(cid),
+            title: data.problem?.name || "Unknown Problem",
+            description: data.problem?.description || "No description available",
+            difficulty: data.problem?.difficulty || "Unknown",
+            downloadContents: data.downloadContents || []
+        };
+	console.log(transformedData.downloadContents)
+        
+        return NextResponse.json(transformedData, { status: 200 });
     } catch (err) {
         console.error("[GET /api/contest/[cid]/problem/[pid]] Error:", err);
         return NextResponse.json(
@@ -37,15 +52,21 @@ export async function POST(
     try {
         const { cid, pid } = params;
         const body = await req.json();
-
         const cookie = req.headers.get("cookie") ?? "";
-        const backendRes = await fetch(`http://localhost:5000/contest/${cid}/problem/${pid}/submit`, {
+        
+        const { code, language } = body;
+        
+        const backendRes = await fetch(`http://localhost:5000/s/submit/${cid}/${pid}`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 Cookie: cookie,
             },
-            body: JSON.stringify(body),
+            credentials: 'include',
+            body: JSON.stringify({ 
+                textcode: code,
+                language: language 
+            }),
         });
 
         if (!backendRes.ok) {
@@ -58,10 +79,10 @@ export async function POST(
 
         const data = await backendRes.json();
         return NextResponse.json(data, { status: 200 });
-    } catch (err) {
+    } catch (err: any) {
         console.error("[POST /api/contest/[cid]/problem/[pid]] Error:", err);
         return NextResponse.json(
-            { error: "Internal Server Error" },
+            { error: "Internal Server Error", message: err.message },
             { status: 500 }
         );
     }

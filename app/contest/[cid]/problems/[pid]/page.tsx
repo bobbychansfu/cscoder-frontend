@@ -13,6 +13,7 @@ interface ProblemDetails {
     title: string;
     description: string;
     difficulty: "Easy" | "Medium" | "Hard" | string;
+    downloadContents?: string[];
 }
 
 export default function CodingPage() {
@@ -24,9 +25,9 @@ export default function CodingPage() {
 
     const [code, setCode] = useState("");
     const [language, setLanguage] = useState("Python");
+    const [submitting, setSubmitting] = useState(false);
     const [submissionResult, setSubmissionResult] = useState<any>(null);
 
-    // ============= 1) Fetch Problem Details on Mount =============
     useEffect(() => {
         if (!cid || !pid) return;
 
@@ -39,9 +40,10 @@ export default function CodingPage() {
                     const errData = await res.json().catch(() => null);
                     throw new Error(errData?.error || `Failed to fetch problem ${pid}`);
                 }
-                return await res.json() as Promise<ProblemDetails>;
+                return res.json();
             })
             .then((data) => {
+                console.log("Problem data:", data);
                 setProblem(data);
                 setError(null);
             })
@@ -55,12 +57,16 @@ export default function CodingPage() {
             });
     }, [cid, pid]);
 
-    // ============= 2) Handle Code Submission =============
     const handleSubmitCode = async () => {
-        if (!cid || !pid) return;
+        if (!cid || !pid || !code) {
+            setSubmissionResult({ error: "No code to submit" });
+            return;
+        }
 
         try {
+            setSubmitting(true);
             setSubmissionResult(null);
+            
             const res = await fetch(`/api/contest/${cid}/problem/${pid}`, {
                 method: "POST",
                 credentials: "include",
@@ -79,10 +85,11 @@ export default function CodingPage() {
         } catch (err: any) {
             console.error("Error submitting code:", err);
             setSubmissionResult({ error: err.message });
+        } finally {
+            setSubmitting(false);
         }
     };
 
-    // ============= 3) Render States =============
     if (loading) {
         return <div className="min-h-screen flex items-center justify-center">Loading problem...</div>;
     }
@@ -99,7 +106,6 @@ export default function CodingPage() {
         );
     }
 
-    // ============= 4) Render the Page =============
     return (
         <div className="min-h-screen bg-gray-100 p-4">
             <main className="max-w-4xl mx-auto">
@@ -110,9 +116,22 @@ export default function CodingPage() {
                     <p className="text-sm text-gray-500 mb-4">
                         Difficulty: {problem.difficulty}
                     </p>
-                    <p className="text-gray-800 whitespace-pre-line">
+                    <div className="text-gray-800 whitespace-pre-line prose max-w-none">
                         {problem.description}
-                    </p>
+                    </div>
+                    
+                    {problem.downloadContents && problem.downloadContents.length > 0 && (
+                        <div className="mt-4 p-4 bg-gray-50 rounded-md">
+                            <h3 className="text-lg font-medium mb-2">Downloads</h3>
+                            <ul>
+                                {problem.downloadContents.map((file, index) => (
+                                    <li key={index} className="text-blue-600 hover:underline">
+                                        <a href={`/problems/${problem.pid}/downloads/${file}`} download>{file}</a>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                 </Card>
 
                 {/* Code Editor */}
@@ -132,33 +151,47 @@ export default function CodingPage() {
                     </div>
 
                     <CodeEditor
-                        language={language}
+                        language={language.toLowerCase()}
                         value={code}
                         onChange={setCode}
                     />
-                </Card>
 
-                {/* Submission Button */}
-                <Button
-                    className="bg-red-700 hover:bg-red-800 text-white w-full"
-                    onClick={handleSubmitCode}
-                >
-                    Submit
-                </Button>
+                    <Button
+                        className="bg-red-700 hover:bg-red-800 text-white w-full mt-4"
+                        onClick={handleSubmitCode}
+                        disabled={submitting || !code}
+                    >
+                        {submitting ? "Submitting..." : "Submit"}
+                    </Button>
+                </Card>
 
                 {/* Submission Result */}
                 {submissionResult && (
-                    <Card className="p-6 shadow-neumorphic mt-4">
+                    <Card className="p-6 shadow-neumorphic">
+                        <h3 className="text-xl font-bold text-red-700 mb-4">Submission Result</h3>
                         {submissionResult.error ? (
-                            <p className="text-red-600">Error: {submissionResult.error}</p>
+                            <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+                                <p className="text-red-600">Error: {submissionResult.error}</p>
+                            </div>
                         ) : (
-                            <pre className="text-sm text-gray-800">
-                {JSON.stringify(submissionResult, null, 2)}
-              </pre>
+                            <div className="p-4 bg-green-50 border border-green-200 rounded-md">
+                                <p className="text-green-700 font-medium">
+                                    {submissionResult.message || "Submission successful!"}
+                                </p>
+                                <p className="text-gray-600 mt-2">
+                                    Submission ID: {submissionResult.sid || "N/A"}
+                                </p>
+                                {submissionResult.status && (
+                                    <p className="text-gray-600">
+                                        Status: {submissionResult.status}
+                                    </p>
+                                )}
+                            </div>
                         )}
                     </Card>
                 )}
             </main>
         </div>
     );
-}
+};
+

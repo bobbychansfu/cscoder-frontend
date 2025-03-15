@@ -1,6 +1,6 @@
 "use client";
 
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect} from 'react'
 import {Card} from "@/components/ui/card";
 import {CheckCircle, XCircle} from 'lucide-react';
 import Link from "next/link";
@@ -24,11 +24,6 @@ interface ProblemCardItem {
     language: string;
 }
 
-interface LeaderboardEntry {
-    computing_id: string;
-    total_score: number;
-}
-
 interface ContestInfo {
     cid: number;
     name: string;
@@ -41,7 +36,6 @@ interface ContestData {
     startTime: string;
     duration: string;
     problems: ProblemCardItem[];
-    leaderboard: { name: string; score: number }[];
 }
 
 export default function ContestPage() {
@@ -65,16 +59,14 @@ export default function ContestPage() {
                     throw new Error('Failed to fetch contest data');
                 }
                 const contestJson = await contestResponse.json();
-
-                const leaderboardResponse = await fetch(`/api/scoreboard/${cid}`, {
-                    credentials: 'include',
-                });
-                if (!leaderboardResponse.ok) {
-                    throw new Error('Failed to fetch leaderboard data');
-                }
-                const leaderboardJson = await leaderboardResponse.json();
-
-                const contest: ContestInfo = leaderboardJson.contest;
+                
+                // Extract contest info and problem status data
+                const contestInfo: ContestInfo = contestJson.contestInfo || {
+                    cid: parseInt(cid as string),
+                    name: 'Unknown Contest',
+                    starts_at: new Date().toISOString(),
+                    ends_at: new Date().toISOString()
+                };
 
                 const problems: ProblemCardItem[] = contestJson.contestProblemsStatus.map((problem: Problem) => ({
                     pid: problem.pid,
@@ -85,17 +77,11 @@ export default function ContestPage() {
                     solved: problem.status === 'correct',
                 }));
 
-                const leaderboard = leaderboardJson.allStatus.map((entry: any) => ({
-                    name: entry.user?.computing_id || 'Unknown',
-                    score: entry.total_score,
-                }));
-
                 const mappedContestData: ContestData = {
-                    title: contest.name,
-                    startTime: `Starts: ${new Date(contest.starts_at).toLocaleString()}`,
-                    duration: `Ends: ${new Date(contest.ends_at).toLocaleString()}`,
+                    title: contestInfo.name,
+                    startTime: `Starts: ${new Date(contestInfo.starts_at).toLocaleString()}`,
+                    duration: `Ends: ${new Date(contestInfo.ends_at).toLocaleString()}`,
                     problems,
-                    leaderboard,
                 };
 
                 setContestData(mappedContestData);
@@ -160,52 +146,17 @@ export default function ContestPage() {
                     </div>
                 </Card>
 
-                <div className="flex gap-8">
-                    {/* Problems Section */}
-                    <div className="flex-grow space-y-4">
-                        {/* First half of the problems */}
-                        <Card className="p-4 shadow-neumorphic">
-                            <h2 className="text-xl font-bold text-red-700 mb-4">Problems</h2>
-                            <div className="text-sm text-gray-600 mb-4">
-                                Tries: {solvedProblems}/{totalProblems} | Score: {totalScore}
-                            </div>
-                            <div className="space-y-2">
-                                {contestData.problems
-                                    .slice(0, Math.ceil(totalProblems / 2))
-                                    .map((problem) => (
-                                        <ProblemItem key={problem.pid} problem={problem}/>
-                                    ))}
-                            </div>
-                        </Card>
-
-                        {/* Second half of the problems */}
-                        <Card className="p-4 shadow-neumorphic">
-                            <h2 className="text-xl font-bold text-red-700 mb-4">Problems</h2>
-                            <div className="text-sm text-gray-600 mb-4">
-                                Tries: {solvedProblems}/{totalProblems} | Score: {totalScore}
-                            </div>
-                            <div className="space-y-2">
-                                {contestData.problems
-                                    .slice(Math.ceil(totalProblems / 2))
-                                    .map((problem) => (
-                                        <ProblemItem key={problem.pid} problem={problem}/>
-                                    ))}
-                            </div>
-                        </Card>
+                <Card className="p-4 shadow-neumorphic">
+                    <h2 className="text-xl font-bold text-red-700 mb-4">Problems</h2>
+                    <div className="text-sm text-gray-600 mb-4">
+                        Solved: {solvedProblems}/{totalProblems} | Score: {totalScore}
                     </div>
-
-                    {/* Leaderboard Section */}
-                    <Card className="w-64 p-4 shadow-neumorphic h-fit">
-                        <h2 className="text-xl font-bold text-red-700 mb-4">LEADERBOARD</h2>
-                        <div className="space-y-2">
-                            {contestData.leaderboard.map((entry, index) => (
-                                <div key={index} className="text-sm">
-                                    {entry.name} - {entry.score}
-                                </div>
-                            ))}
-                        </div>
-                    </Card>
-                </div>
+                    <div className="space-y-2">
+                        {contestData.problems.map((problem) => (
+                            <ProblemItem key={problem.pid} problem={problem}/>
+                        ))}
+                    </div>
+                </Card>
             </main>
         </div>
     );
@@ -213,6 +164,7 @@ export default function ContestPage() {
 
 function ProblemItem({problem}: { problem: ProblemCardItem }) {
     const [isHovered, setIsHovered] = useState(false);
+    const params = useParams();
 
     const difficultyColor = {
         Easy: 'hover:bg-green-100 border-green-300',
@@ -229,7 +181,7 @@ function ProblemItem({problem}: { problem: ProblemCardItem }) {
     }[problem.difficulty];
 
     return (
-        <Link href={`/app/contest/%5Bcid%5D/coding/${problem.pid}`}>
+        <Link href={`/contest/${params.cid}/problems/${problem.pid}`}>
             <div
                 className={`flex items-center justify-between p-2 bg-white rounded-lg shadow-sm transition-colors duration-200 border ${difficultyColor} ${
                     isHovered ? 'border-opacity-100' : 'border-opacity-0'
@@ -251,4 +203,4 @@ function ProblemItem({problem}: { problem: ProblemCardItem }) {
             </div>
         </Link>
     );
-}
+};
