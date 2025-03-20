@@ -10,7 +10,7 @@ import {
     lineNumbers
 } from '@codemirror/view';
 import { defaultHighlightStyle, syntaxHighlighting, indentOnInput, bracketMatching } from '@codemirror/language';
-import { tomorrow } from 'thememirror'
+import { tomorrow } from 'thememirror';
 
 import { javascript } from '@codemirror/lang-javascript';
 import { java } from '@codemirror/lang-java';
@@ -28,17 +28,19 @@ interface CodeEditorProps {
 }
 
 function getLanguageExtension(language: string) {
-    switch (language) {
-        case 'JavaScript':
+    const lang = language.toLowerCase();
+    
+    switch (lang) {
+        case 'javascript':
             return javascript();
-        case 'Java':
+        case 'java':
             return java();
-        case 'C++':
+        case 'c++':
             return cpp();
-        case 'Python':
+        case 'python':
             return python();
         default:
-            return [];
+            return javascript(); 
     }
 }
 
@@ -53,21 +55,23 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, language }) =>
         const startState = EditorState.create({
             doc: value,
             extensions: [
-                syntaxHighlighting(defaultHighlightStyle),
+                lineNumbers(),
+                highlightSpecialChars(),
                 drawSelection(),
                 highlightActiveLine(),
                 indentOnInput(),
-                keymap.of([indentWithTab, ...defaultKeymap]),
+                syntaxHighlighting(defaultHighlightStyle),
+                bracketMatching(),
                 closeBrackets(),
+                keymap.of([indentWithTab, ...defaultKeymap]),
                 languageCompartment.current.of(getLanguageExtension(language)),
-                EditorState.tabSize.of(3),
+                EditorState.tabSize.of(4),
                 EditorView.lineWrapping,
                 EditorView.updateListener.of(update => {
-                    onChange(update.state.doc.toString());
+                    if (update.docChanged) {
+                        onChange(update.state.doc.toString());
+                    }
                 }),
-                bracketMatching(),
-                highlightSpecialChars(),
-                lineNumbers(),
                 tomorrow
             ],
         });
@@ -109,8 +113,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange, language }) =>
         }
     }, [language]);
 
-
-    return <div className="h-full w-full" ref={editorContainerRef}></div>
+    return <div className="h-96 w-full border border-gray-300 rounded-md overflow-hidden" ref={editorContainerRef}></div>
 };
 
 export default CodeEditor;

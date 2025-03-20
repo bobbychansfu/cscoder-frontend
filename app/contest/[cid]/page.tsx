@@ -1,10 +1,10 @@
 "use client";
 
-import React, {useState, useEffect} from 'react'
-import {Card} from "@/components/ui/card";
-import {CheckCircle, XCircle} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Card } from "@/components/ui/card";
+import { CheckCircle, XCircle, Circle, ChevronDown, ChevronUp, Clock } from 'lucide-react';
 import Link from "next/link";
-import {useParams} from "next/navigation";
+import { useParams } from "next/navigation";
 
 interface Problem {
     pid: number;           // matches DB 'pid'
@@ -21,7 +21,16 @@ interface ProblemCardItem {
     difficulty: 'Easy' | 'Medium' | 'Hard' | 'NULL';
     score: number;
     solved: boolean;
+    status: string;
     language: string;
+}
+
+interface Submission {
+    sid: number;
+    time_submitted: string;
+    language: string;
+    status: string;
+    score: number;
 }
 
 interface ContestInfo {
@@ -36,10 +45,11 @@ interface ContestData {
     startTime: string;
     duration: string;
     problems: ProblemCardItem[];
+    problemSubmissions: Record<number, Submission[]>;
 }
 
 export default function ContestPage() {
-    const {cid} = useParams();
+    const { cid } = useParams();
     const [contestData, setContestData] = useState<ContestData | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
@@ -72,8 +82,9 @@ export default function ContestPage() {
                     pid: problem.pid,
                     name: problem.name,
                     difficulty: mapDifficulty(problem.difficulty),
-                    language: problem.language || 'N/A',
+                    language: problem.language || '',
                     score: problem.score ?? 0,
+                    status: problem.status || '',
                     solved: problem.status === 'correct',
                 }));
 
@@ -82,6 +93,7 @@ export default function ContestPage() {
                     startTime: `Starts: ${new Date(contestInfo.starts_at).toLocaleString()}`,
                     duration: `Ends: ${new Date(contestInfo.ends_at).toLocaleString()}`,
                     problems,
+                    problemSubmissions: contestJson.problemSubmissions || {}
                 };
 
                 setContestData(mappedContestData);
@@ -123,7 +135,7 @@ export default function ContestPage() {
     const totalProblems = contestData.problems.length;
     const solvedProblems = contestData.problems.filter((p) => p.solved).length;
     const progress = (solvedProblems / totalProblems) * 100;
-    const totalScore = contestData.problems.reduce((sum, p) => sum + p.score, 0);
+    const totalScore = contestData.problems.reduce((sum, p) => p.score ? sum + p.score : sum, 0);
 
     return (
         <div className="min-h-screen bg-gray-100 p-4">
@@ -141,7 +153,7 @@ export default function ContestPage() {
                     <div className="w-full bg-gray-200 rounded-full h-2.5">
                         <div
                             className="bg-red-600 h-2.5 rounded-full"
-                            style={{width: `${progress}%`}}
+                            style={{ width: `${progress}%` }}
                         ></div>
                     </div>
                 </Card>
@@ -151,9 +163,13 @@ export default function ContestPage() {
                     <div className="text-sm text-gray-600 mb-4">
                         Solved: {solvedProblems}/{totalProblems} | Score: {totalScore}
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-4">
                         {contestData.problems.map((problem) => (
-                            <ProblemItem key={problem.pid} problem={problem}/>
+                            <ProblemItem 
+                                key={problem.pid} 
+                                problem={problem} 
+                                submissions={contestData.problemSubmissions[problem.pid] || []}
+                            />
                         ))}
                     </div>
                 </Card>
@@ -162,8 +178,12 @@ export default function ContestPage() {
     );
 }
 
-function ProblemItem({problem}: { problem: ProblemCardItem }) {
+function ProblemItem({ problem, submissions }: { 
+    problem: ProblemCardItem, 
+    submissions: Submission[] 
+}) {
     const [isHovered, setIsHovered] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(false);
     const params = useParams();
 
     const difficultyColor = {
@@ -180,27 +200,114 @@ function ProblemItem({problem}: { problem: ProblemCardItem }) {
         NULL: 'text-gray-600',
     }[problem.difficulty];
 
+    // Determine the status icon based on the problem status and submissions
+    const getStatusIcon = () => {
+        if (problem.solved) {
+            return <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />;
+        } else if (problem.status === 'judging' || submissions.some(s => s.status === 'judging')) {
+            return <Clock className="w-5 h-5 text-blue-500 flex-shrink-0" />;
+        } else if (submissions.length === 0 || problem.status === '') {
+            return <Circle className="w-5 h-5 text-gray-400 flex-shrink-0" />;
+        } else {
+            return <XCircle className="w-5 h-5 text-red-500 flex-shrink-0" />;
+        }
+    };
+
     return (
-        <Link href={`/contest/${params.cid}/problems/${problem.pid}`}>
+        <div className="rounded-lg overflow-hidden border border-gray-200">
             <div
-                className={`flex items-center justify-between p-2 bg-white rounded-lg shadow-sm transition-colors duration-200 border ${difficultyColor} ${
-                    isHovered ? 'border-opacity-100' : 'border-opacity-0'
+                className={`flex items-center justify-between p-3 bg-white rounded-lg shadow-sm transition-colors duration-200 ${
+                    isHovered ? difficultyColor : ''
                 }`}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
             >
-                {problem.solved ? (
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0"/>
-                ) : (
-                    <XCircle className="w-5 h-5 text-red-500 flex-shrink-0"/>
-                )}
-                <div className="flex-grow ml-2 truncate">{problem.name}</div>
-                <div className={`mx-2 ${textColor} flex-shrink-0`}>
-                    {problem.difficulty}
+                <div className="flex items-center flex-grow">
+                    {getStatusIcon()}
+                    <Link href={`/contest/${params.cid}/problems/${problem.pid}`} className="flex-grow">
+                        <div className="ml-2 truncate">{problem.name}</div>
+                    </Link>
                 </div>
-                <div className="mx-2 flex-shrink-0">{problem.language}</div>
-                <div className="text-red-600 flex-shrink-0">{problem.score}</div>
+                
+                <div className="flex items-center">
+                    {problem.difficulty !== 'NULL' && (
+                        <div className={`mx-2 ${textColor} flex-shrink-0`}>
+                            {problem.difficulty}
+                        </div>
+                    )}
+                    
+                    {problem.language && problem.language !== 'N/A' && (
+                        <div className="mx-2 flex-shrink-0">{problem.language}</div>
+                    )}
+                    
+                    {problem.score > 0 && (
+                        <div className="text-red-600 mx-2 flex-shrink-0">{problem.score}</div>
+                    )}
+                    
+                    {submissions.length > 0 && (
+                        <button 
+                            onClick={(e) => {
+                                e.preventDefault();
+                                setIsExpanded(!isExpanded);
+                            }}
+                            className="ml-2 p-1 rounded-full hover:bg-gray-100"
+                        >
+                            {isExpanded ? (
+                                <ChevronUp className="w-5 h-5 text-gray-500" />
+                            ) : (
+                                <ChevronDown className="w-5 h-5 text-gray-500" />
+                            )}
+                        </button>
+                    )}
+                </div>
             </div>
-        </Link>
+            
+            {/* Submission List */}
+            {isExpanded && submissions.length > 0 && (
+                <div className="bg-gray-50 p-3 border-t border-gray-200">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Submissions</h3>
+                    <div className="space-y-2">
+                        {submissions.map((submission) => (
+                            <div 
+                                key={submission.sid} 
+                                className="bg-white p-2 rounded border border-gray-200 text-sm flex justify-between items-center"
+                            >
+                                <div className="flex items-center">
+                                    {submission.status === 'correct' ? (
+                                        <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                                    ) : submission.status === 'judging' ? (
+                                        <Clock className="w-4 h-4 text-blue-500 mr-2" />
+                                    ) : (
+                                        <XCircle className="w-4 h-4 text-red-500 mr-2" />
+                                    )}
+                                    <span className="text-gray-600">
+                                        {new Date(submission.time_submitted).toLocaleString()}
+                                    </span>
+                                </div>
+                                <div className="flex items-center space-x-4">
+                                    <span className="px-2 py-1 rounded-full bg-gray-100 text-xs">
+                                        {submission.language}
+                                    </span>
+                                    {submission.score > 0 && (
+                                        <span className="text-red-600 font-medium">
+                                            {submission.score}
+                                        </span>
+                                    )}
+                                    <span className={`text-xs px-2 py-1 rounded-full ${
+                                        submission.status === 'correct' 
+                                            ? 'bg-green-100 text-green-800' 
+                                            : submission.status === 'judging'
+                                            ? 'bg-blue-100 text-blue-800'
+                                            : 'bg-red-100 text-red-800'
+                                    }`}>
+                                        {submission.status}
+                                    </span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
     );
-};
+}

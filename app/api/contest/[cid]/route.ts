@@ -3,8 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 export async function GET(req: NextRequest, { params }: { params: { cid: string } }) {
     try {
         const { cid } = params;
-        
-        // Step 1: First, try to register the user for the contest
+       
         const registerRes = await fetch(`http://localhost:5000/s/contest/register/${cid}`, {
             method: 'POST', 
             headers: {
@@ -14,7 +13,6 @@ export async function GET(req: NextRequest, { params }: { params: { cid: string 
             credentials: 'include'
         });
         
-        // Step 2: Enter the contest (required to create problem statuses)
         const enterContestRes = await fetch(`http://localhost:5000/s/entercontest/${cid}`, {
             headers: {
                 Cookie: req.headers.get('cookie') || ''
@@ -22,7 +20,6 @@ export async function GET(req: NextRequest, { params }: { params: { cid: string 
             credentials: 'include'
         });
         
-        // Step 3: Get contest details
         const backendRes = await fetch(`http://localhost:5000/s/contest/${cid}`, {
             headers: {
                 Cookie: req.headers.get('cookie') || '',
@@ -40,7 +37,6 @@ export async function GET(req: NextRequest, { params }: { params: { cid: string 
 
         const data = await backendRes.json();
         
-        // Also fetch basic contest info to get name, start and end times
         const contestInfoRes = await fetch(`http://localhost:5000/s/closed/${cid}`, {
             headers: {
                 Cookie: req.headers.get('cookie') || '',
@@ -54,10 +50,35 @@ export async function GET(req: NextRequest, { params }: { params: { cid: string 
             contestInfo = contestData.contest;
         }
         
-        // Add contest info to the response
+        // Get submissions for each problem
+        const problemSubmissions = {};
+        
+        if (data.contestProblemsStatus && Array.isArray(data.contestProblemsStatus)) {
+            for (const problem of data.contestProblemsStatus) {
+                try {
+                    const submissionsRes = await fetch(`http://localhost:5000/s/submissions/${cid}/${problem.pid}`, {
+                        headers: {
+                            Cookie: req.headers.get('cookie') || '',
+                        },
+                        credentials: 'include'
+                    });
+                    
+                    if (submissionsRes.ok) {
+                        const submissionsData = await submissionsRes.json();
+                        problemSubmissions[problem.pid] = submissionsData.submissions || [];
+                    }
+                } catch (submissionErr) {
+                    console.error(`Error fetching submissions for problem ${problem.pid}:`, submissionErr);
+                    problemSubmissions[problem.pid] = [];
+                }
+            }
+        }
+        
+        // Add contest info and submissions to the response
         return NextResponse.json({
             ...data,
-            contestInfo
+            contestInfo,
+            problemSubmissions
         });
     } catch (err: any) {
         console.error('[Contest API] Error:', err);
@@ -66,5 +87,4 @@ export async function GET(req: NextRequest, { params }: { params: { cid: string 
             { status: 500 }
         );
     }
-};
-
+} 

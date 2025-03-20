@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CodeEditor from "@/components/CodeEditor";
+import Script from "next/script";
 
 interface ProblemDetails {
     pid: number;
@@ -14,6 +16,17 @@ interface ProblemDetails {
     description: string;
     difficulty: "Easy" | "Medium" | "Hard" | string;
     downloadContents?: string[];
+    sampleRuns?: Array<{
+        input: string;
+        output: string;
+        id: number;
+    }>;
+}
+
+declare global {
+    interface Window {
+        MathJax: any;
+    }
 }
 
 export default function CodingPage() {
@@ -27,6 +40,9 @@ export default function CodingPage() {
     const [language, setLanguage] = useState("Python");
     const [submitting, setSubmitting] = useState(false);
     const [submissionResult, setSubmissionResult] = useState<any>(null);
+    const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+
+    const descriptionRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (!cid || !pid) return;
@@ -43,9 +59,15 @@ export default function CodingPage() {
                 return res.json();
             })
             .then((data) => {
-                console.log("Problem data:", data);
-                setProblem(data);
+                const processedData = processProblemData(data);
+                setProblem(processedData);
                 setError(null);
+                
+                setTimeout(() => {
+                    if (window.MathJax) {
+                        window.MathJax.typesetPromise?.([descriptionRef.current]);
+                    }
+                }, 100);
             })
             .catch((err) => {
                 console.error("Error fetching problem details:", err);
@@ -56,6 +78,70 @@ export default function CodingPage() {
                 setLoading(false);
             });
     }, [cid, pid]);
+    
+    const processProblemData = (data: ProblemDetails): ProblemDetails => {
+        if (typeof window === 'undefined') {
+            return data;
+        }
+        
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = data.description;
+        
+        const sampleRuns: Array<{input: string; output: string; id: number}> = [];
+        
+        const sampleRunHeadings = Array.from(tempDiv.querySelectorAll('h3'))
+            .filter(heading => heading.textContent?.includes('Sample Run'));
+        
+        sampleRunHeadings.forEach((heading, index) => {
+            const runMatch = heading.textContent?.match(/Sample Run (\d+)/);
+            const runId = runMatch ? parseInt(runMatch[1]) : index + 1;
+            
+            let preElement = heading.nextElementSibling;
+            while (preElement && preElement.tagName !== 'PRE') {
+                preElement = preElement.nextElementSibling;
+            }
+            
+            if (preElement) {
+                const boldElements = preElement.querySelectorAll('b');
+                let input = '';
+                let output = '';
+                
+                if (boldElements.length > 0) {
+                    boldElements.forEach(bold => {
+                        input += bold.textContent + ' ';
+                    });
+                    input = input.trim();
+                    
+                    output = preElement.textContent || '';
+                    boldElements.forEach(bold => {
+                        output = output.replace(bold.textContent || '', '');
+                    });
+                    output = output.trim();
+                } else {
+                    const lines = (preElement.textContent || '').trim().split('\n');
+                    if (lines.length >= 2) {
+                        input = lines[0].trim();
+                        output = lines.slice(1).join('\n').trim();
+                    }
+                }
+                
+                if (input && output) {
+                    sampleRuns.push({
+                        input,
+                        output,
+                        id: runId
+                    });
+                }
+            }
+        });
+        
+        sampleRuns.sort((a, b) => a.id - b.id);
+        
+        return {
+            ...data,
+            sampleRuns: sampleRuns.length > 0 ? sampleRuns : undefined
+        };
+    };
 
     const handleSubmitCode = async () => {
         if (!cid || !pid || !code) {
@@ -81,7 +167,6 @@ export default function CodingPage() {
 
             const data = await res.json();
             setSubmissionResult(data);
-            console.log("Submission result:", data);
         } catch (err: any) {
             console.error("Error submitting code:", err);
             setSubmissionResult({ error: err.message });
@@ -108,90 +193,216 @@ export default function CodingPage() {
 
     return (
         <div className="min-h-screen bg-gray-100 p-4">
-            <main className="max-w-4xl mx-auto">
-                <Card className="p-6 shadow-neumorphic mb-8">
-                    <h1 className="text-2xl font-bold text-red-700 mb-2">
-                        {problem.title}
-                    </h1>
-                    <p className="text-sm text-gray-500 mb-4">
-                        Difficulty: {problem.difficulty}
-                    </p>
-                    <div className="text-gray-800 whitespace-pre-line prose max-w-none">
-                        {problem.description}
-                    </div>
-                    
-                    {problem.downloadContents && problem.downloadContents.length > 0 && (
-                        <div className="mt-4 p-4 bg-gray-50 rounded-md">
-                            <h3 className="text-lg font-medium mb-2">Downloads</h3>
-                            <ul>
-                                {problem.downloadContents.map((file, index) => (
-                                    <li key={index} className="text-blue-600 hover:underline">
-                                        <a href={`/problems/${problem.pid}/downloads/${file}`} download>{file}</a>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-                </Card>
+            <Script 
+                id="mathjax-script"
+                strategy="afterInteractive"
+                src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
+                onLoad={() => {
+                    window.MathJax = {
+                        tex: {
+                            inlineMath: [['$', '$'], ['\\(', '\\)']],
+                            displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                        },
+                        svg: {
+                            fontCache: 'global'
+                        },
+                        options: {
+                            enableMenu: false
+                        }
+                    };
+                    if (window.MathJax.typesetPromise) {
+                        window.MathJax.typesetPromise([descriptionRef.current]);
+                    }
+                }}
+            />
 
-                {/* Code Editor */}
-                <Card className="p-6 shadow-neumorphic mb-8">
-                    <div className="mb-4">
-                        <Select onValueChange={setLanguage} defaultValue={language}>
-                            <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder="Select Language" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="C++">C++</SelectItem>
-                                <SelectItem value="Python">Python</SelectItem>
-                                <SelectItem value="Java">Java</SelectItem>
-                                <SelectItem value="JavaScript">JavaScript</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-
-                    <CodeEditor
-                        language={language.toLowerCase()}
-                        value={code}
-                        onChange={setCode}
-                    />
-
-                    <Button
-                        className="bg-red-700 hover:bg-red-800 text-white w-full mt-4"
-                        onClick={handleSubmitCode}
-                        disabled={submitting || !code}
-                    >
-                        {submitting ? "Submitting..." : "Submit"}
-                    </Button>
-                </Card>
-
-                {/* Submission Result */}
-                {submissionResult && (
-                    <Card className="p-6 shadow-neumorphic">
-                        <h3 className="text-xl font-bold text-red-700 mb-4">Submission Result</h3>
-                        {submissionResult.error ? (
-                            <div className="p-4 bg-red-50 border border-red-200 rounded-md">
-                                <p className="text-red-600">Error: {submissionResult.error}</p>
-                            </div>
-                        ) : (
-                            <div className="p-4 bg-green-50 border border-green-200 rounded-md">
-                                <p className="text-green-700 font-medium">
-                                    {submissionResult.message || "Submission successful!"}
+            <main className="max-w-7xl mx-auto">
+                <h1 className="text-2xl font-bold text-red-700 mb-4">
+                    {problem.title}
+                </h1>
+                
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <Card className="p-6 shadow-neumorphic mb-6 h-full">
+                            <div className="mb-4">
+                                <p className="text-sm text-gray-500 mb-2">
+                                    Difficulty: {problem.difficulty}
                                 </p>
-                                <p className="text-gray-600 mt-2">
-                                    Submission ID: {submissionResult.sid || "N/A"}
-                                </p>
-                                {submissionResult.status && (
-                                    <p className="text-gray-600">
-                                        Status: {submissionResult.status}
-                                    </p>
+                                <div 
+                                    ref={descriptionRef}
+                                    className="text-gray-800 prose max-w-none"
+                                    dangerouslySetInnerHTML={{ __html: problem.description }}
+                                />
+                                
+                                {problem.sampleRuns && problem.sampleRuns.length > 0 && (
+                                    <div className="mt-6">
+                                        <h3 className="text-lg font-medium mb-3">Sample Runs</h3>
+                                        <Tabs defaultValue={`run-${problem.sampleRuns[0].id}`}>
+                                            <TabsList className="mb-2">
+                                                {problem.sampleRuns.map(run => (
+                                                    <TabsTrigger key={run.id} value={`run-${run.id}`}>
+                                                        Sample Run {run.id}
+                                                    </TabsTrigger>
+                                                ))}
+                                            </TabsList>
+                                            
+                                            {problem.sampleRuns.map(run => (
+                                                <TabsContent key={run.id} value={`run-${run.id}`} className="mt-0">
+                                                    <div className="bg-gray-50 p-4 rounded-md">
+                                                        <div className="mb-3">
+                                                            <div className="text-sm font-medium text-gray-500 mb-1">Input:</div>
+                                                            <pre className="bg-white p-3 rounded border border-gray-200 text-sm overflow-x-auto">
+                                                                {run.input}
+                                                            </pre>
+                                                        </div>
+                                                        <div>
+                                                            <div className="text-sm font-medium text-gray-500 mb-1">Output:</div>
+                                                            <pre className="bg-white p-3 rounded border border-gray-200 text-sm overflow-x-auto">
+                                                                {run.output}
+                                                            </pre>
+                                                        </div>
+                                                    </div>
+                                                </TabsContent>
+                                            ))}
+                                        </Tabs>
+                                    </div>
                                 )}
                             </div>
+                            
+                            {problem.downloadContents && problem.downloadContents.length > 0 && (
+                                <div className="mt-6 p-4 bg-gray-50 rounded-md">
+                                    <h3 className="text-lg font-medium mb-2">Downloads</h3>
+                                    <ul>
+                                        {problem.downloadContents.map((file, index) => (
+                                            <li key={index} className="text-blue-600 hover:underline">
+                                                <a href={`/problems/${problem.pid}/downloads/${file}`} download>{file}</a>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </Card>
+                        
+                        {submissionResult && (
+                            <Card className="p-6 shadow-neumorphic">
+                                <h3 className="text-xl font-bold text-red-700 mb-4">Submission Result</h3>
+                                {submissionResult.error ? (
+                                    <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+                                        <p className="text-red-600">Error: {submissionResult.error}</p>
+                                    </div>
+                                ) : (
+                                    <div className="p-4 bg-green-50 border border-green-200 rounded-md">
+                                        <p className="text-green-700 font-medium">
+                                            {submissionResult.message || "Submission successful!"}
+                                        </p>
+                                        <p className="text-gray-600 mt-2">
+                                            Submission ID: {submissionResult.sid || "N/A"}
+                                        </p>
+                                        {submissionResult.status && (
+                                            <p className="text-gray-600">
+                                                Status: {submissionResult.status}
+                                            </p>
+                                        )}
+                                    </div>
+                                )}
+                            </Card>
                         )}
-                    </Card>
-                )}
+                    </div>
+
+                    <div>
+                        <Card className="p-6 shadow-neumorphic h-full">
+                            <div className="mb-4">
+                                <Select onValueChange={setLanguage} defaultValue={language}>
+                                    <SelectTrigger className="w-[180px]">
+                                        <SelectValue placeholder="Select Language" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="C++">C++</SelectItem>
+                                        <SelectItem value="Python">Python</SelectItem>
+                                        <SelectItem value="Java">Java</SelectItem>
+                                        <SelectItem value="JavaScript">JavaScript</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="text-sm text-gray-500">
+                                    {uploadedFileName 
+                                        ? <span>File: <span className="font-medium">{uploadedFileName}</span></span>
+                                        : "Upload code file or write directly in the editor"
+                                    }
+                                </div>
+                                <label className="cursor-pointer">
+                                    <span className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-md text-sm inline-block">
+                                        {uploadedFileName ? "Change File" : "Upload File"}
+                                    </span>
+                                    <input 
+                                        type="file"
+                                        className="hidden"
+                                        accept=".py,.cpp,.java,.js,.html,.css,.txt"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                const extension = file.name.split('.').pop()?.toLowerCase();
+                                                if (extension) {
+                                                    const langMap: {[key: string]: string} = {
+                                                        'py': 'Python',
+                                                        'cpp': 'C++',
+                                                        'java': 'Java',
+                                                        'js': 'JavaScript',
+                                                    };
+                                                    
+                                                    if (langMap[extension]) {
+                                                        setLanguage(langMap[extension]);
+                                                    }
+                                                }
+                                                
+                                                const reader = new FileReader();
+                                                reader.onload = (event) => {
+                                                    if (event.target?.result) {
+                                                        setCode(event.target.result.toString());
+                                                        setUploadedFileName(file.name);
+                                                    }
+                                                };
+                                                reader.readAsText(file);
+                                            }
+                                        }}
+                                    />
+                                </label>
+                            </div>
+
+                            <div className="min-h-[calc(100vh-350px)]">
+                                <CodeEditor
+                                    language={language.toLowerCase()}
+                                    value={code}
+                                    onChange={setCode}
+                                />
+                            </div>
+
+                            <div className="mt-4 flex space-x-4">
+                                <Button
+                                    className="bg-red-700 hover:bg-red-800 text-white flex-1"
+                                    onClick={handleSubmitCode}
+                                    disabled={submitting || !code}
+                                >
+                                    {submitting ? "Submitting..." : "Submit"}
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    className="border-gray-300 hover:bg-gray-100 text-gray-700"
+                                    onClick={() => {
+                                        setCode("");
+                                        setUploadedFileName(null);
+                                    }}
+                                    disabled={submitting || !code}
+                                >
+                                    Clear
+                                </Button>
+                            </div>
+                        </Card>
+                    </div>
+                </div>
             </main>
         </div>
     );
 };
-
