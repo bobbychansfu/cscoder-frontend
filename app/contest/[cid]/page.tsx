@@ -7,11 +7,11 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 
 interface Problem {
-    pid: number;           // matches DB 'pid'
-    name: string;          // matches DB 'name'
-    difficulty: string;    // matches DB 'difficulty'
-    score?: number;        // from problemstatus (user-specific) OR from 'ap' in problems (problem base points)
-    status?: string;       // from problemstatus (e.g. 'correct', 'in progress', etc.)
+    pid: number;
+    name: string;
+    difficulty: string;
+    score?: number;
+    status?: string;
     language?: string;
 }
 
@@ -69,8 +69,7 @@ export default function ContestPage() {
                     throw new Error('Failed to fetch contest data');
                 }
                 const contestJson = await contestResponse.json();
-                
-                // Extract contest info and problem status data
+
                 const contestInfo: ContestInfo = contestJson.contestInfo || {
                     cid: parseInt(cid as string),
                     name: 'Unknown Contest',
@@ -108,7 +107,6 @@ export default function ContestPage() {
         fetchContestData().then(r => console.log(r));
     }, [cid]);
 
-    // Helper to map DB "difficulty" strings to your typed union
     const mapDifficulty = (difficulty: string): 'Easy' | 'Medium' | 'Hard' | 'NULL' => {
         switch (difficulty) {
             case 'Easy':
@@ -200,7 +198,6 @@ function ProblemItem({ problem, submissions }: {
         NULL: 'text-gray-600',
     }[problem.difficulty];
 
-    // Determine the status icon based on the problem status and submissions
     const getStatusIcon = () => {
         if (problem.solved) {
             return <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />;
@@ -261,8 +258,7 @@ function ProblemItem({ problem, submissions }: {
                     )}
                 </div>
             </div>
-            
-            {/* Submission List */}
+
             {isExpanded && submissions.length > 0 && (
                 <div className="bg-gray-50 p-3 border-t border-gray-200">
                     <h3 className="text-sm font-medium text-gray-700 mb-2">Submissions</h3>

@@ -7,12 +7,12 @@ import {Card} from "@/components/ui/card";
 import Link from 'next/link';
 
 interface Contest {
-    id: number;                    // from DB's cid
-    title: string;                 // from DB's name
-    difficulty: 'Easy' | 'Normal' | 'Hard';  // from DB's "type" if you store difficulty there
+    id: number;
+    title: string;
+    difficulty: 'Easy' | 'Normal' | 'Hard';
     startingSoon: boolean;
-    category: string;              // not in DB, placeholder or manual assignment
-    location: string;              // from DB's location
+    category: string;
+    location: string;
 }
 
 interface Filters {
@@ -112,7 +112,6 @@ export default function ContestsPage() {
     return (
         <div className="min-h-screen bg-gray-100 p-4">
             <div className="flex gap-8">
-                {/* Sidebar Filters */}
                 <aside className="w-64 bg-white p-4 rounded-lg shadow-neumorphic">
                     <h2 className="text-xl font-semibold mb-4 text-red-700">Filters</h2>
                     <div className="space-y-4">
@@ -137,7 +136,6 @@ export default function ContestsPage() {
                     </div>
                 </aside>
 
-                {/* Main Content */}
                 <main className="flex-1">
                     <div className="flex gap-4 mb-8">
                         <Input
@@ -203,7 +201,6 @@ function FilterSection({title, options, currentFilter, onFilterChange}: FilterSe
     );
 }
 
-// ContestCard
 interface ContestCardProps {
     contest: Contest;
 }

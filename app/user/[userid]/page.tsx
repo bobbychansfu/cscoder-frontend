@@ -9,8 +9,6 @@ import {
 } from "lucide-react";
 import {useParams} from "next/navigation";
 
-/** Define interfaces that match the data your backend (or the Next.js API route) returns **/
-
 interface UserData {
     username: string;
     rank: string;
@@ -18,8 +16,8 @@ interface UserData {
     problemsSolved: number;
     pointsAcquired: number;
     recentActivities: {
-        type: string;  // e.g. 'participated', 'solved', 'created', etc.
-        name: string;  // e.g. "Algorithm Challenge 2025" or "Dynamic Programming Mastery"
+        type: string;
+        name: string;
     }[];
 }
 
@@ -28,7 +26,7 @@ export default function UserAccount() {
     const [userData, setUserData] = useState<UserData | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    // Also get the registered and scores from them contests
+
     useEffect(() => {
         setLoading(true);
         fetch(`/api/user/${userid}`, {
@@ -130,7 +128,6 @@ export default function UserAccount() {
                                 key={index}
                                 className="bg-white p-3 rounded-md shadow-sm flex items-center space-x-3"
                             >
-                                {/* For icons, you might map `activity.type` => an icon. For now, here's a quick example */}
                                 {mapActivityIcon(activity.type)}
                                 <span>{activity.name}</span>
                             </li>
@@ -160,7 +157,6 @@ function StatCard({ icon, title, value }: StatCardProps) {
     );
 }
 
-// Example of dynamic icon assignment based on activity type
 function mapActivityIcon(type: string): React.ReactNode {
     switch (type) {
         case "participated":
@@ -174,7 +170,6 @@ function mapActivityIcon(type: string): React.ReactNode {
         case "milestone":
             return <Target className="w-5 h-5 text-red-500" />;
         default:
-            // fallback icon
             return <Star className="w-5 h-5 text-gray-500" />;
     }
 }

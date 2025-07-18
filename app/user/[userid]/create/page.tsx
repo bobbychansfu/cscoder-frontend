@@ -1,5 +1,4 @@
 "use client";
-//TODO: USER ID
 import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -14,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 interface Problem {
     id: string;
     name: string;
-    difficulty: "Easy" | "Medium" | "Hard" | string; // might be string if unknown
+    difficulty: "Easy" | "Medium" | "Hard" | string;
 }
 
 interface Test {
@@ -25,7 +24,6 @@ interface Test {
 const programmingLanguages = ["C++", "Python", "Java", "JavaScript"];
 
 export default function ContestProblemCreation() {
-    // ========== STATE ==========
     const [availableProblems, setAvailableProblems] = useState<Problem[]>([]);
     const [selectedProblems, setSelectedProblems] = useState<string[]>([]);
     const [contestName, setContestName] = useState("");
@@ -39,7 +37,6 @@ export default function ContestProblemCreation() {
     const [activeTestTab, setActiveTestTab] = useState("0");
     const [selectedLanguage, setSelectedLanguage] = useState<string>("C++");
 
-    // ========== FETCH PROBLEMS ON MOUNT ==========
     useEffect(() => {
         fetch("/api/problems", {
             credentials: "include",
@@ -63,7 +60,6 @@ export default function ContestProblemCreation() {
             });
     }, []);
 
-    // ========== FILTER PROBLEMS LOCALLY ==========
     const filteredProblems = availableProblems.filter((problem) => {
         return (
             problem.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -71,7 +67,6 @@ export default function ContestProblemCreation() {
         );
     });
 
-    // ========== PROBLEM SELECTION ==========
     const handleProblemSelection = (problemId: string) => {
         if (selectedProblems.includes(problemId)) {
             setSelectedProblems(selectedProblems.filter((id) => id !== problemId));
@@ -80,7 +75,6 @@ export default function ContestProblemCreation() {
         }
     };
 
-    // ========== REFRESH BUTTON ==========
     const handleRefresh = () => {
         fetch("/api/problems", { credentials: "include" })
             .then(async (res) => {
@@ -93,7 +87,6 @@ export default function ContestProblemCreation() {
             .catch((err) => console.error("Refresh error:", err));
     };
 
-    // ========== CREATE CONTEST ==========
     const handleCreateContest = async () => {
         try {
             console.log("Creating contest:", {
@@ -131,7 +124,6 @@ export default function ContestProblemCreation() {
         }
     };
 
-    // ========== CREATE PROBLEM ==========
     const handleCreateProblem = async () => {
         try {
             console.log("Creating problem:", {
@@ -173,14 +165,12 @@ export default function ContestProblemCreation() {
         }
     };
 
-    // ========== ADD TEST CASE ==========
     const handleAddTest = () => {
         const newTestIndex = tests.length.toString();
         setTests([...tests, { input: "", expectedOutput: "" }]);
         setActiveTestTab(newTestIndex);
     };
 
-    // ========== REMOVE TEST CASE ==========
     const handleRemoveTest = (index: number) => {
         const newTests = tests.filter((_, i) => i !== index);
         setTests(newTests);
@@ -192,7 +182,6 @@ export default function ContestProblemCreation() {
         }
     };
 
-    // ========== HANDLE TEST CASE CHANGES ==========
     const handleTestChange = (
         index: number,
         field: "input" | "expectedOutput",
@@ -217,7 +206,6 @@ export default function ContestProblemCreation() {
                                 Create a New Contest
                             </h2>
                             <div className="space-y-4">
-                                {/* CONTEST NAME */}
                                 <div>
                                     <label
                                         htmlFor="contestName"
@@ -234,7 +222,6 @@ export default function ContestProblemCreation() {
                                     />
                                 </div>
 
-                                {/* CONTEST DESCRIPTION */}
                                 <div>
                                     <label
                                         htmlFor="contestDescription"
@@ -252,7 +239,6 @@ export default function ContestProblemCreation() {
                                     />
                                 </div>
 
-                                {/* SELECT PROBLEMS */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Select Problems
@@ -309,7 +295,6 @@ export default function ContestProblemCreation() {
                                     </div>
                                 </div>
 
-                                {/* BUTTON TO CREATE CONTEST */}
                                 <Button
                                     onClick={handleCreateContest}
                                     className="w-full bg-red-700 hover:bg-red-800 text-white"
@@ -327,7 +312,6 @@ export default function ContestProblemCreation() {
                             </h2>
                             <div className="flex gap-6">
                                 <div className="flex-1 space-y-4">
-                                    {/* PROBLEM NAME */}
                                     <div>
                                         <label
                                             htmlFor="problemName"
@@ -344,7 +328,6 @@ export default function ContestProblemCreation() {
                                         />
                                     </div>
 
-                                    {/* PROBLEM DESCRIPTION */}
                                     <div>
                                         <label
                                             htmlFor="problemDescription"
@@ -362,7 +345,6 @@ export default function ContestProblemCreation() {
                                         />
                                     </div>
 
-                                    {/* TEST CASES */}
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
                                             Test Cases
@@ -436,7 +418,6 @@ export default function ContestProblemCreation() {
                                     </div>
                                 </div>
 
-                                {/* CODE EDITOR & LANGUAGE SELECT */}
                                 <div className="flex-1 space-y-4">
                                     <Card className="p-6 shadow-neumorphic">
                                         <div className="flex justify-between items-center mb-4">
@@ -468,7 +449,6 @@ export default function ContestProblemCreation() {
                                 </div>
                             </div>
 
-                            {/* BUTTON TO CREATE PROBLEM */}
                             <Button
                                 onClick={handleCreateProblem}
                                 className="w-full bg-red-700 hover:bg-red-800 text-white mt-6"

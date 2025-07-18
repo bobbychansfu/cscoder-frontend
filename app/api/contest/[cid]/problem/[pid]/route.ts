@@ -29,11 +29,12 @@ export async function GET(
             pid: parseInt(pid),
             cid: parseInt(cid),
             title: data.problem?.name || "Unknown Problem",
-            description: data.problem?.description || "No description available",
+            description: data.htmlContents || "No description available",
             difficulty: data.problem?.difficulty || "Unknown",
-            downloadContents: data.downloadContents || []
+            downloadContents: data.downloadContents || [],
         };
 	console.log(transformedData.downloadContents)
+	console.log(transformedData.description)
         
         return NextResponse.json(transformedData, { status: 200 });
     } catch (err) {
