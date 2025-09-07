@@ -33,19 +33,19 @@ export default function ContestsPage() {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        fetch(`/api/contests`, {
-            credentials: 'include',
-        })
-            .then(async (res) => {
-                if (!res.ok) {
-                    const {error} = await res.json();
-                    console.error('Contests pull error:', error);
-                    return;
-                }
-                const data = await res.json();
+        const fetchContests = async () => {
+            try {
+                setLoading(true);
+                const res = await fetch(`/api/contests`, {
+                    credentials: 'include',
+                });
 
-                console.log(data.contests);
-                console.log(data);
+                if (!res.ok) {
+                    const errorData = await res.json();
+                    throw new Error(errorData.error || 'Failed to fetch contests');
+                }
+
+                const data = await res.json();
                 const fetchedContests: Contest[] = [
                     ...data.contests.map((contest: any) => ({
                         id: contest.cid,
@@ -66,14 +66,16 @@ export default function ContestsPage() {
                 ];
 
                 setContests(fetchedContests);
-            })
-            .catch(err => {
+                setError(null); // Clear any previous errors
+            } catch (err: any) {
                 console.error('Fetch error:', err);
                 setError(err.message);
-            })
-            .finally(() => {
+            } finally {
                 setLoading(false);
-            });
+            }
+        };
+
+        fetchContests();
     }, []);
 
     const mapDifficulty = (typeValue: string): 'Easy' | 'Normal' | 'Hard' => {

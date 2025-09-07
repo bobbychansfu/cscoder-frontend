@@ -5,6 +5,8 @@ import { Card } from "@/components/ui/card";
 import { CheckCircle, XCircle, Circle, ChevronDown, ChevronUp, Clock } from 'lucide-react';
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { ScoreboardSmall } from '@/components/ScoreboardSmall';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Problem {
     pid: number;
@@ -53,22 +55,33 @@ export default function ContestPage() {
     const [contestData, setContestData] = useState<ContestData | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
+    const [scoreboard, setScoreboard] = useState<any[] | null>(null);
 
     useEffect(() => {
         const fetchContestData = async () => {
             try {
                 if (!cid) return;
-
-                console.log(cid);
                 setLoading(true);
 
-                const contestResponse = await fetch(`/api/contest/${cid}`, {
-                    credentials: 'include',
-                });
+                const [contestResponse, scoreboardResponse] = await Promise.all([
+                    fetch(`/api/contest/${cid}`, { credentials: 'include' }),
+                    fetch(`/api/scoreboard/${cid}`, { credentials: 'include' })
+                ]);
+
                 if (!contestResponse.ok) {
-                    throw new Error('Failed to fetch contest data');
+                    const errorData = await contestResponse.json();
+                    throw new Error(errorData.error || 'Failed to fetch contest data');
                 }
+
+                if (!scoreboardResponse.ok) {
+                    const errorData = await scoreboardResponse.json();
+                    throw new Error(errorData.error || 'Failed to fetch scoreboard data');
+                }
+
                 const contestJson = await contestResponse.json();
+                const scoreboardJson = await scoreboardResponse.json();
+
+                setScoreboard(scoreboardJson.allStatus);
 
                 const contestInfo: ContestInfo = contestJson.contestInfo || {
                     cid: parseInt(cid as string),
@@ -96,6 +109,7 @@ export default function ContestPage() {
                 };
 
                 setContestData(mappedContestData);
+                setError(null); // Clear previous errors on success
             } catch (err: any) {
                 console.error(err);
                 setError(err.message);
@@ -104,7 +118,7 @@ export default function ContestPage() {
             }
         };
 
-        fetchContestData().then(r => console.log(r));
+        fetchContestData();
     }, [cid]);
 
     const mapDifficulty = (difficulty: string): 'Easy' | 'Medium' | 'Hard' | 'NULL' => {
@@ -156,21 +170,30 @@ export default function ContestPage() {
                     </div>
                 </Card>
 
-                <Card className="p-4 shadow-neumorphic">
-                    <h2 className="text-xl font-bold text-red-700 mb-4">Problems</h2>
-                    <div className="text-sm text-gray-600 mb-4">
-                        Solved: {solvedProblems}/{totalProblems} | Score: {totalScore}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div className="lg:col-span-2">
+                        <Card className="p-4 shadow-neumorphic">
+                            <h2 className="text-xl font-bold text-red-700 mb-4">Problems</h2>
+                            <div className="text-sm text-gray-600 mb-4">
+                                Solved: {solvedProblems}/{totalProblems} | Score: {totalScore}
+                            </div>
+                            <div className="space-y-4">
+                                {contestData.problems.map((problem) => (
+                                    <ProblemItem
+                                        key={problem.pid}
+                                        problem={problem}
+                                        submissions={contestData.problemSubmissions[problem.pid] || []}
+                                    />
+                                ))}
+                            </div>
+                        </Card>
                     </div>
-                    <div className="space-y-4">
-                        {contestData.problems.map((problem) => (
-                            <ProblemItem 
-                                key={problem.pid} 
-                                problem={problem} 
-                                submissions={contestData.problemSubmissions[problem.pid] || []}
-                            />
-                        ))}
+                    <div>
+                        {scoreboard && (
+                            <ScoreboardSmall contestId={cid} scoreboard={scoreboard} />
+                        )}
                     </div>
-                </Card>
+                </div>
             </main>
         </div>
     );
@@ -259,51 +282,59 @@ function ProblemItem({ problem, submissions }: {
                 </div>
             </div>
 
-            {isExpanded && submissions.length > 0 && (
-                <div className="bg-gray-50 p-3 border-t border-gray-200">
-                    <h3 className="text-sm font-medium text-gray-700 mb-2">Submissions</h3>
-                    <div className="space-y-2">
-                        {submissions.map((submission) => (
-                            <div 
-                                key={submission.sid} 
-                                className="bg-white p-2 rounded border border-gray-200 text-sm flex justify-between items-center"
-                            >
-                                <div className="flex items-center">
-                                    {submission.status === 'correct' ? (
-                                        <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-                                    ) : submission.status === 'judging' ? (
-                                        <Clock className="w-4 h-4 text-blue-500 mr-2" />
-                                    ) : (
-                                        <XCircle className="w-4 h-4 text-red-500 mr-2" />
-                                    )}
-                                    <span className="text-gray-600">
-                                        {new Date(submission.time_submitted).toLocaleString()}
-                                    </span>
-                                </div>
-                                <div className="flex items-center space-x-4">
-                                    <span className="px-2 py-1 rounded-full bg-gray-100 text-xs">
-                                        {submission.language}
-                                    </span>
-                                    {submission.score > 0 && (
-                                        <span className="text-red-600 font-medium">
-                                            {submission.score}
+            <AnimatePresence>
+                {isExpanded && submissions.length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                        className="bg-gray-50 p-3 border-t border-gray-200"
+                    >
+                        <h3 className="text-sm font-medium text-gray-700 mb-2">Submissions</h3>
+                        <div className="space-y-2">
+                            {submissions.map((submission) => (
+                                <div 
+                                    key={submission.sid} 
+                                    className="bg-white p-2 rounded border border-gray-200 text-sm flex justify-between items-center"
+                                >
+                                    <div className="flex items-center">
+                                        {submission.status === 'correct' ? (
+                                            <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
+                                        ) : submission.status === 'judging' ? (
+                                            <Clock className="w-4 h-4 text-blue-500 mr-2" />
+                                        ) : (
+                                            <XCircle className="w-4 h-4 text-red-500 mr-2" />
+                                        )}
+                                        <span className="text-gray-600">
+                                            {new Date(submission.time_submitted).toLocaleString()}
                                         </span>
-                                    )}
-                                    <span className={`text-xs px-2 py-1 rounded-full ${
-                                        submission.status === 'correct' 
-                                            ? 'bg-green-100 text-green-800' 
-                                            : submission.status === 'judging'
-                                            ? 'bg-blue-100 text-blue-800'
-                                            : 'bg-red-100 text-red-800'
-                                    }`}>
-                                        {submission.status}
-                                    </span>
+                                    </div>
+                                    <div className="flex items-center space-x-4">
+                                        <span className="px-2 py-1 rounded-full bg-gray-100 text-xs">
+                                            {submission.language}
+                                        </span>
+                                        {submission.score > 0 && (
+                                            <span className="text-red-600 font-medium">
+                                                {submission.score}
+                                            </span>
+                                        )}
+                                        <span className={`text-xs px-2 py-1 rounded-full ${
+                                            submission.status === 'correct' 
+                                                ? 'bg-green-100 text-green-800' 
+                                                : submission.status === 'judging'
+                                                ? 'bg-blue-100 text-blue-800'
+                                                : 'bg-red-100 text-red-800'
+                                        }`}>
+                                            {submission.status}
+                                        </span>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-            )}
+                            ))}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

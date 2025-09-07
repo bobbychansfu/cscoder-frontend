@@ -4,7 +4,7 @@ export async function GET(req: NextRequest, {params}: { params: { cid: string } 
     try {
         const {cid} = params;
 
-        const backendRes = await fetch(`http://localhost:5000/main/scoreboard/${cid}`, {
+        const backendRes = await fetch(`http://localhost:5000/m/scoreboard/${cid}`, {
             headers: {
                 Cookie: req.headers.get('cookie') || '',
             },

@@ -1,48 +1,41 @@
 "use client";
 
-import React, {useEffect, useState} from 'react'
-import {Button} from "@/components/ui/button"
-import Link from 'next/link'
-import {useRouter, useSearchParams} from "next/navigation";
+import React, { useEffect, useState } from 'react';
+import { Button } from "@/components/ui/button";
+import Link from 'next/link';
+import { useRouter, useSearchParams } from "next/navigation";
 
 export default function MainPage() {
     const [userLoggedIn, setUserLoggedIn] = useState(false);
-    const [userName, setUserName] = useState("");
     const router = useRouter();
     const searchParams = useSearchParams();
 
     useEffect(() => {
         const ticket = searchParams.get('ticket');
-        if (ticket) {
-            console.log(ticket);
-            fetch(`/api/login?ticket=${ticket}`, {
-                credentials: 'include',
-            })
-                .then(async (res) => {
-                        if (!res.ok) {
-                            const {error} = await res.json();
-                            console.error('Login error:', error);
-                            return;
-                        }
 
+        if (ticket) {
+            fetch(`/api/login?ticket=${ticket}`)
+                .then((res) => {
+                    if (res.ok) {
                         router.push('/contests');
+                    } else {
+                        console.error('Login with ticket failed.');
                     }
-                )
+                })
                 .catch(err => {
                     console.error('Fetch error:', err);
                 });
         } else {
-            console.log("No ticket!")
+            fetch('/api/contests', { credentials: 'include' })
+                .then(res => {
+                    if (res.ok) {
+                        setUserLoggedIn(true);
+                    }
+                });
         }
-
-        const user = localStorage.getItem('user');
-        if (user) {
-            const userData = JSON.parse(user);
-            setUserLoggedIn(true);
-            setUserName(userData.name);
-        }
-
     }, [searchParams, router]);
+
+    const casLoginUrl = "https://cas.sfu.ca/cas/login?service=http%3A%2F%2Fcoder.cmpt.sfu.ca%2F";
 
     return (
         <div
@@ -54,7 +47,7 @@ export default function MainPage() {
             }}
         >
             <h1 className="md:text-7xl text-3xl lg:text-9xl font-bold text-center text-red-700 relative z-20">
-                CS-CODER
+                CODER
             </h1>
             <div className="w-[40rem] h-10 relative">
                 <div
@@ -67,20 +60,14 @@ export default function MainPage() {
                     className="absolute inset-x-60 top-0 bg-gradient-to-r from-transparent via-red-400 to-transparent h-px w-1/4"/>
             </div>
             <p className="text-xl text-gray-700 mb-12 text-center max-w-2xl">
-                Your ultimate platform for coding contests and challenges. Sharpen your skills, compete with others, and
-                become a coding master!
+                Your ultimate platform for coding contests and challenges by SFU!
             </p>
             <div className="space-y-6 flex flex-col items-center">
                 <Button asChild
                         className="bg-red-700 hover:bg-red-800 text-white px-12 py-6 rounded-lg text-2xl font-semibold transition-colors duration-300">
-                    <Link
-                        href={`${userLoggedIn ? `/user/${userName}` : "https://cas.sfu.ca/cas/login?service=http%3A%2F%2Fcoder.cmpt.sfu.ca%2F"}`}>
+                    <Link href={userLoggedIn ? '/contests' : casLoginUrl}>
                         Log In with SFU
                     </Link>
-                </Button>
-                <Button asChild variant="outline"
-                        className="bg-white hover:bg-gray-200 text-red-700 px-8 py-3 rounded-lg text-lg font-semibold transition-colors duration-300">
-                    <Link href="/contests">Continue as Guest</Link>
                 </Button>
             </div>
         </div>

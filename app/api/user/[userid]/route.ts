@@ -5,7 +5,7 @@ export async function GET(req: NextRequest, {params}: { params: { userid: string
         const {userid} = params;
         const cookie = req.headers.get("cookie") ?? "";
 
-        const backendRes = await fetch(`http://localhost:5000/user/${userid}`, {
+        const backendRes = await fetch(`http://localhost:5000/s/profile`, {
             headers: { Cookie: cookie },
         });
 

@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
         console.log(data);
 
         return NextResponse.json({
+            computingId: data.computingId,
             contests: data.contests,
             contestsOpen: data.contestsOpen
         });
