@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(req: NextRequest, {params}: { params: { userid: string } }) {
+export async function GET(req: NextRequest) {
     try {
-        const {userid} = params;
         const cookie = req.headers.get("cookie") ?? "";
 
         const backendRes = await fetch(`http://localhost:5000/s/profile`, {
             headers: { Cookie: cookie },
         });
+
+        console.log("got backend response")
 
         if (!backendRes.ok) {
             const errorData = await backendRes.json().catch(() => null);
@@ -18,6 +19,7 @@ export async function GET(req: NextRequest, {params}: { params: { userid: string
         }
 
         const data = await backendRes.json();
+        console.log(data);
         return NextResponse.json(data, { status: 200 });
     } catch (err) {
         console.error("Error in /api/user route:", err);

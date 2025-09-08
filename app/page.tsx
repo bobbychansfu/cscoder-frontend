@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import Link from 'next/link';
-import { useRouter, useSearchParams } from "next/navigation";
+
 
 export default function MainPage() {
-    const [userLoggedIn, setUserLoggedIn] = useState(false);
     const router = useRouter();
     const searchParams = useSearchParams();
 
@@ -17,20 +17,20 @@ export default function MainPage() {
             fetch(`/api/login?ticket=${ticket}`)
                 .then((res) => {
                     if (res.ok) {
+                        return res.json();
+                    }
+                    throw new Error('Login with ticket failed.');
+                })
+                .then(data => {
+                    console.log(data);
+                    if (data && data.userName) {
                         router.push('/contests');
                     } else {
-                        console.error('Login with ticket failed.');
+                        console.error('User ID not found in login response.');
                     }
                 })
                 .catch(err => {
                     console.error('Fetch error:', err);
-                });
-        } else {
-            fetch('/api/contests', { credentials: 'include' })
-                .then(res => {
-                    if (res.ok) {
-                        setUserLoggedIn(true);
-                    }
                 });
         }
     }, [searchParams, router]);
@@ -65,7 +65,7 @@ export default function MainPage() {
             <div className="space-y-6 flex flex-col items-center">
                 <Button asChild
                         className="bg-red-700 hover:bg-red-800 text-white px-12 py-6 rounded-lg text-2xl font-semibold transition-colors duration-300">
-                    <Link href={userLoggedIn ? '/contests' : casLoginUrl}>
+                    <Link href={casLoginUrl}>
                         Log In with SFU
                     </Link>
                 </Button>
