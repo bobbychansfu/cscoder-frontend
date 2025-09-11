@@ -29,8 +29,13 @@ declare global {
     }
 }
 
+import {
+    useSubmissions
+} from "@/lib/SubmissionsContext";
+
 export default function CodingPage() {
     const { cid, pid } = useParams();
+    const { submissions, startPolling } = useSubmissions();
 
     const [problem, setProblem] = useState<ProblemDetails | null>(null);
     const [loading, setLoading] = useState(true);
@@ -43,6 +48,8 @@ export default function CodingPage() {
     const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
 
     const descriptionRef = useRef<HTMLDivElement>(null);
+
+    const liveStatus = submissionResult?.sid ? submissions.get(submissionResult.sid)?.status : null;
 
     useEffect(() => {
         if (!cid || !pid) return;
@@ -167,6 +174,9 @@ export default function CodingPage() {
 
             const data = await res.json();
             setSubmissionResult(data);
+            if (data.sid) {
+                startPolling(data.sid);
+            }
         } catch (err: any) {
             console.error("Error submitting code:", err);
             setSubmissionResult({ error: err.message });
@@ -174,6 +184,7 @@ export default function CodingPage() {
             setSubmitting(false);
         }
     };
+
 
     if (loading) {
         return <div className="min-h-screen flex items-center justify-center">Loading problem...</div>;
@@ -300,7 +311,7 @@ export default function CodingPage() {
                                         </p>
                                         {submissionResult.status && (
                                             <p className="text-gray-600">
-                                                Status: {submissionResult.status}
+                                                Status: {liveStatus || submissionResult.status}
                                             </p>
                                         )}
                                     </div>

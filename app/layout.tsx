@@ -39,14 +39,18 @@ function Header() {
     );
 }
 
+import { SubmissionsProvider } from "@/lib/SubmissionsContext";
+
 export default function RootLayout({children}: Readonly<{ children: React.ReactNode; }>) {
     return (
         <html lang="en">
         <body
             className={`${geistSans.variable} ${geistMono.variable} antialiased bg-gray-100 p-4`}
         >
-        <Header />
-        {children}
+        <SubmissionsProvider>
+            <Header />
+            {children}
+        </SubmissionsProvider>
         </body>
         </html>
     );
