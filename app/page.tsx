@@ -12,13 +12,7 @@ export default function MainPage() {
 
     useEffect(() => {
 
-        let ticket = "";
-
-        if (process.env.LOCAL_DEVELOPMENT === "true"){
-            ticket = process.env.FAKE_CAS_RESPONSE;
-        } else {
-            ticket = searchParams.get('ticket');
-        }
+        const ticket = searchParams.get('ticket');
 
         if (ticket) {
             fetch(`/api/login?ticket=${ticket}`)

@@ -2,7 +2,7 @@ import {NextRequest, NextResponse} from 'next/server';
 
 export async function GET(req: NextRequest) {
     try {
-        const backendRes = await fetch('http://localhost:5000/i/info', {
+        const backendRes = await fetch('http://localhost:5000/s/info', {
             headers: {
                 Cookie: req.headers.get('cookie') || '',
             },
