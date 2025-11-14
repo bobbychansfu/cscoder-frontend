@@ -8,6 +8,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CodeEditor from "@/components/CodeEditor";
 import Script from "next/script";
+import { io } from "socket.io-client"
 
 interface ProblemDetails {
     pid: number;
@@ -23,6 +24,18 @@ interface ProblemDetails {
     }>;
 }
 
+interface ProblemStatus {
+    sid: number | null,
+    computing_id: string | null,
+    cid: number | null,
+    pid: number | null,
+    status: string | null,
+    tries: number | null,
+    time_penalty: number | null,
+    score: number | null,
+    error: string | null
+}
+
 declare global {
     interface Window {
         MathJax: any;
@@ -32,6 +45,8 @@ declare global {
 import {
     useSubmissions
 } from "@/lib/SubmissionsContext";
+
+const socket = io("http://localhost:5000");
 
 export default function CodingPage() {
     const { cid, pid } = useParams();
@@ -44,7 +59,7 @@ export default function CodingPage() {
     const [code, setCode] = useState("");
     const [language, setLanguage] = useState("Python");
     const [submitting, setSubmitting] = useState(false);
-    const [submissionResult, setSubmissionResult] = useState<any>(null);
+    const [submissionResult, setSubmissionResult] = useState<ProblemStatus | null>(null);
     const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
 
     const descriptionRef = useRef<HTMLDivElement>(null);
@@ -84,6 +99,25 @@ export default function CodingPage() {
             .finally(() => {
                 setLoading(false);
             });
+
+        socket.on('connect', () => {
+            console.log('Connected to server!');
+        });
+
+        socket.emit('test', 'Hello from cs-coder frontend')
+
+        socket.on("status", (status: ProblemStatus)=>{
+            console.log(JSON.stringify(status, null, 2));
+            setSubmissionResult({...status});
+        })
+
+        return () => {
+            socket.disconnect();
+            socket.on('disconnect', () => {
+                console.log('Disconnected from server.');
+            });
+        }
+
     }, [cid, pid]);
     
     const processProblemData = (data: ProblemDetails): ProblemDetails => {
@@ -152,7 +186,11 @@ export default function CodingPage() {
 
     const handleSubmitCode = async () => {
         if (!cid || !pid || !code) {
-            setSubmissionResult({ error: "No code to submit" });
+            if (submissionResult){
+                setSubmissionResult({ ...submissionResult, error: "No code to submit" });
+            } else {
+
+            }
             return;
         }
 
@@ -179,7 +217,11 @@ export default function CodingPage() {
             }
         } catch (err: any) {
             console.error("Error submitting code:", err);
-            setSubmissionResult({ error: err.message });
+
+            if (submissionResult){
+                console.log(JSON.stringify(submissionResult))
+                setSubmissionResult({...submissionResult, error: err.message });
+            }
         } finally {
             setSubmitting(false);
         }

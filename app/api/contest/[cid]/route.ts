@@ -5,14 +5,14 @@ export async function GET(req: NextRequest, { params }: { params: { cid: string 
         const { cid } = params;
        
         const registerRes = await fetch(`http://localhost:5000/s/contest/register/${cid}`, {
-            method: 'POST', 
+            method: 'POST',
             headers: {
                 Cookie: req.headers.get('cookie') || '',
                 'Content-Type': 'application/json'
             },
             credentials: 'include'
         });
-        
+
         const enterContestRes = await fetch(`http://localhost:5000/s/entercontest/${cid}`, {
             headers: {
                 Cookie: req.headers.get('cookie') || ''
