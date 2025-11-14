@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const cookieStore = cookies();
     const sessionCookie = cookieStore.get('connect.sid'); // Default express-session cookie name
 
-    const backendResponse = await fetch(`${BACKEND_URL}/api/submissions?sids=${sids}`, {
+    const backendResponse = await fetch(`${BACKEND_URL}/m/submissions?sids=${sids}`, {
       headers: {
         'Cookie': sessionCookie ? `${sessionCookie.name}=${sessionCookie.value}` : '',
       },

@@ -100,12 +100,14 @@ export default function CodingPage() {
                 setLoading(false);
             });
 
+        // Connect to codeserver via websocket
         socket.on('connect', () => {
             console.log('Connected to server!');
         });
 
         socket.emit('test', 'Hello from cs-coder frontend')
 
+        // Listen for updates from server on problem status
         socket.on("status", (status: ProblemStatus)=>{
             console.log(JSON.stringify(status, null, 2));
             setSubmissionResult({...status});
