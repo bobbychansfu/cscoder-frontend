@@ -8,7 +8,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CodeEditor from "@/components/CodeEditor";
 import Script from "next/script";
-import { io } from "socket.io-client"
+import {io, Socket} from "socket.io-client"
 
 interface ProblemDetails {
     pid: number;
@@ -46,8 +46,6 @@ import {
     useSubmissions
 } from "@/lib/SubmissionsContext";
 
-const socket = io("http://localhost:5000");
-
 export default function CodingPage() {
     const { cid, pid } = useParams();
     const { submissions, startPolling } = useSubmissions();
@@ -61,10 +59,15 @@ export default function CodingPage() {
     const [submitting, setSubmitting] = useState(false);
     const [submissionResult, setSubmissionResult] = useState<ProblemStatus | null>(null);
     const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
-
+    const [socket, setSocket] = useState<Socket | null>(null)
     const descriptionRef = useRef<HTMLDivElement>(null);
 
     const liveStatus = submissionResult?.sid ? submissions.get(submissionResult.sid)?.status : null;
+
+    function updateProblemStatus(status: ProblemStatus){
+            console.log(JSON.stringify(status, null, 2));
+            setSubmissionResult({...status});
+    }
 
     useEffect(() => {
         if (!cid || !pid) return;
@@ -84,7 +87,7 @@ export default function CodingPage() {
                 const processedData = processProblemData(data);
                 setProblem(processedData);
                 setError(null);
-                
+
                 setTimeout(() => {
                     if (window.MathJax) {
                         window.MathJax.typesetPromise?.([descriptionRef.current]);
@@ -100,27 +103,56 @@ export default function CodingPage() {
                 setLoading(false);
             });
 
-        // Connect to codeserver via websocket
-        socket.on('connect', () => {
-            console.log('Connected to server!');
-        });
+        const new_socket = io("http://localhost:5000");
+        setSocket(new_socket);
 
-        socket.emit('test', 'Hello from cs-coder frontend')
-
-        // Listen for updates from server on problem status
-        socket.on("status", (status: ProblemStatus)=>{
-            console.log(JSON.stringify(status, null, 2));
-            setSubmissionResult({...status});
-        })
-
-        return () => {
-            socket.disconnect();
-            socket.on('disconnect', () => {
-                console.log('Disconnected from server.');
-            });
-        }
+        // if (socket){
+        //     // Connect to codeserver via websocket
+        //     socket.on('connect', () => {
+        //         console.log('Connected to server!');
+        //     });
+        //
+        //     socket.emit('test', 'Hello from cs-coder frontend')
+        //
+        //     // Listen for updates from server on problem status
+        //     socket.on("status", updateProblemStatus)
+        // }
+        //
+        // return () => {
+        //
+        //     if (socket) {
+        //         socket.off("connect");
+        //         socket.off("status", updateProblemStatus);
+        //         socket.off("disconnect");
+        //         socket.disconnect();
+        //     }
+        // }
 
     }, [cid, pid]);
+
+    useEffect(() => {
+        if (socket){
+            // Connect to codeserver via websocket
+            socket.on('connect', () => {
+                console.log('Connected to server!');
+            });
+
+            socket.emit('test', 'Hello from cs-coder frontend')
+
+            // Listen for updates from server on problem status
+            socket.on("status", updateProblemStatus)
+        }
+
+        return () => {
+
+            if (socket) {
+                socket.off("connect");
+                socket.off("status", updateProblemStatus);
+                socket.off("disconnect");
+                socket.disconnect();
+            }
+        }
+    }, [socket]);
     
     const processProblemData = (data: ProblemDetails): ProblemDetails => {
         if (typeof window === 'undefined') {
