@@ -10,7 +10,5 @@ Coding page where users solve problems.
 - **MathJax Integration**: Mathematical formula rendering support for problem description rendering
 
 ## Submission System
-- **Real-time Feedback**: Immediate submission status and results
+- **Real-time Feedback**: Immediate submission status and results with websockets
 - **Error Handling**: Comprehensive error display for failed submissions
-
-**NEEDS WEBSOCKET HANDLING!!! ⚠️**

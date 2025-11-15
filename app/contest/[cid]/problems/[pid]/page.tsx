@@ -8,6 +8,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CodeEditor from "@/components/CodeEditor";
 import Script from "next/script";
+import {io, Socket} from "socket.io-client"
 
 interface ProblemDetails {
     pid: number;
@@ -21,6 +22,18 @@ interface ProblemDetails {
         output: string;
         id: number;
     }>;
+}
+
+interface ProblemStatus {
+    sid: number | null,
+    computing_id: string | null,
+    cid: number | null,
+    pid: number | null,
+    status: string | null,
+    tries: number | null,
+    time_penalty: number | null,
+    score: number | null,
+    error: string | null
 }
 
 declare global {
@@ -44,12 +57,19 @@ export default function CodingPage() {
     const [code, setCode] = useState("");
     const [language, setLanguage] = useState("Python");
     const [submitting, setSubmitting] = useState(false);
-    const [submissionResult, setSubmissionResult] = useState<any>(null);
+    const [submissionResult, setSubmissionResult] = useState<ProblemStatus | null>(null);
     const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
-
+    const [socket, setSocket] = useState<Socket | null>(null)
     const descriptionRef = useRef<HTMLDivElement>(null);
 
     const liveStatus = submissionResult?.sid ? submissions.get(submissionResult.sid)?.status : null;
+
+    const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:5000";
+
+    function updateProblemStatus(status: ProblemStatus){
+            console.log(JSON.stringify(status, null, 2));
+            setSubmissionResult({...status});
+    }
 
     useEffect(() => {
         if (!cid || !pid) return;
@@ -69,7 +89,7 @@ export default function CodingPage() {
                 const processedData = processProblemData(data);
                 setProblem(processedData);
                 setError(null);
-                
+
                 setTimeout(() => {
                     if (window.MathJax) {
                         window.MathJax.typesetPromise?.([descriptionRef.current]);
@@ -84,7 +104,36 @@ export default function CodingPage() {
             .finally(() => {
                 setLoading(false);
             });
+
+        const new_socket = io(BACKEND_URL);
+        setSocket(new_socket);
+
     }, [cid, pid]);
+
+    useEffect(() => {
+
+        if (socket){
+            // Connect to codeserver via websocket
+            socket.on('connect', () => {
+                console.log('Connected to server!');
+            });
+
+            socket.emit('test', 'Hello from cs-coder frontend')
+
+            // Listen for updates from server on problem status
+            socket.on("status", updateProblemStatus)
+        }
+
+        return () => {
+
+            if (socket) {
+                socket.off("connect");
+                socket.off("status", updateProblemStatus);
+                socket.off("disconnect");
+                socket.disconnect();
+            }
+        }
+    }, [socket]);
     
     const processProblemData = (data: ProblemDetails): ProblemDetails => {
         if (typeof window === 'undefined') {
@@ -152,7 +201,11 @@ export default function CodingPage() {
 
     const handleSubmitCode = async () => {
         if (!cid || !pid || !code) {
-            setSubmissionResult({ error: "No code to submit" });
+            if (submissionResult){
+                setSubmissionResult({ ...submissionResult, error: "No code to submit" });
+            } else {
+
+            }
             return;
         }
 
@@ -179,7 +232,11 @@ export default function CodingPage() {
             }
         } catch (err: any) {
             console.error("Error submitting code:", err);
-            setSubmissionResult({ error: err.message });
+
+            if (submissionResult){
+                console.log(JSON.stringify(submissionResult))
+                setSubmissionResult({...submissionResult, error: err.message });
+            }
         } finally {
             setSubmitting(false);
         }

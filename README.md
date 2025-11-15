@@ -25,8 +25,23 @@ pnpm dev
 bun dev
 ```
 
-3. Open [https://coder.cmpt.sfu.ca](https://coder.cmpt.sfu.ca) in your browser *(if the frontend was launched from server)*
+3. Set environment variables
+   * Create a `.env` file in the root directory with these variables
+   ```env
+   LOCAL_DEVELOPMENT=true  # Will skip redirecting to the SFU CAS system when running the server locally
+   FAKE_CAS_RESPONSE='<cas:serviceResponse xmlns:cas="https://cas.sfu.ca/cas"></cas:serviceResponse>'
+   BACKEND_URL=http://localhost:5000 # Or whatever URL the server is running on
+   ```
 
+4. Open [https://coder.cmpt.sfu.ca](https://coder.cmpt.sfu.ca) in your browser *(if the frontend was launched from server)*
+   * Alternatively, if you want to run the frontend locally (with `localhost`), then after running `npm run dev`, add this
+   query parameter: `?ticket=<fake_ticket>`, this will bypass the login with CAS (Assuming the server is also running locally)
+   
+   * Example fake ticket:
+   ```env
+   <cas:serviceResponse xmlns:cas="https://cas.sfu.ca/cas"><cas:authenticationSuccess><cas:user>test1234</cas:user><cas:attributes><cas:uid>test</cas:uid><cas:email>test@sfu.ca</cas:email><cas:displayName>Test User</cas:displayName><cas:givenName>Test</cas:givenName><cas:sn>User</cas:sn><cas:affiliation>student</cas:affiliation><cas:authenticationDate>2025-11-09T16:00:00Z</cas:authenticationDate><cas:longTermAuthenticationRequestTokenUsed>false</cas:longTermAuthenticationRequestTokenUsed><cas:isFromNewLogin>true</cas:isFromNewLogin></cas:attributes></cas:authenticationSuccess></cas:serviceResponse>
+   ```
+    
 ## Pages Overview
 
 ### Main Pages
