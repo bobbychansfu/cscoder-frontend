@@ -64,6 +64,8 @@ export default function CodingPage() {
 
     const liveStatus = submissionResult?.sid ? submissions.get(submissionResult.sid)?.status : null;
 
+    const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:5000";
+
     function updateProblemStatus(status: ProblemStatus){
             console.log(JSON.stringify(status, null, 2));
             setSubmissionResult({...status});
@@ -103,34 +105,13 @@ export default function CodingPage() {
                 setLoading(false);
             });
 
-        const new_socket = io("http://localhost:5000");
+        const new_socket = io(BACKEND_URL);
         setSocket(new_socket);
-
-        // if (socket){
-        //     // Connect to codeserver via websocket
-        //     socket.on('connect', () => {
-        //         console.log('Connected to server!');
-        //     });
-        //
-        //     socket.emit('test', 'Hello from cs-coder frontend')
-        //
-        //     // Listen for updates from server on problem status
-        //     socket.on("status", updateProblemStatus)
-        // }
-        //
-        // return () => {
-        //
-        //     if (socket) {
-        //         socket.off("connect");
-        //         socket.off("status", updateProblemStatus);
-        //         socket.off("disconnect");
-        //         socket.disconnect();
-        //     }
-        // }
 
     }, [cid, pid]);
 
     useEffect(() => {
+
         if (socket){
             // Connect to codeserver via websocket
             socket.on('connect', () => {
