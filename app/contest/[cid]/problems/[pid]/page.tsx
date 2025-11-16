@@ -59,7 +59,9 @@ export default function CodingPage() {
     const [submitting, setSubmitting] = useState(false);
     const [submissionResult, setSubmissionResult] = useState<ProblemStatus | null>(null);
     const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
-    const [socket, setSocket] = useState<Socket | null>(null)
+    const [statusSocket, setStatusSocket] = useState<Socket | null>(null)
+    const [hintSocket, setHintSocket] = useState<Socket | null>(null);
+
     const descriptionRef = useRef<HTMLDivElement>(null);
 
     const liveStatus = submissionResult?.sid ? submissions.get(submissionResult.sid)?.status : null;
@@ -105,35 +107,57 @@ export default function CodingPage() {
                 setLoading(false);
             });
 
-        const new_socket = io(BACKEND_URL);
-        setSocket(new_socket);
+        const status_socket = io(`${BACKEND_URL}/status`);
+        setStatusSocket(status_socket);
+
+        const hint_socket = io(`${BACKEND_URL}/ai_hints`);
+        setHintSocket(hint_socket);
 
     }, [cid, pid]);
 
     useEffect(() => {
 
-        if (socket){
+        if (statusSocket) {
             // Connect to codeserver via websocket
-            socket.on('connect', () => {
+            statusSocket.on('connect', () => {
                 console.log('Connected to server!');
             });
 
-            socket.emit('test', 'Hello from cs-coder frontend')
+            statusSocket.emit('test', 'Ready to listen for problem status')
 
             // Listen for updates from server on problem status
-            socket.on("status", updateProblemStatus)
+            statusSocket.on("status", updateProblemStatus);
+        }
+
+        if (hintSocket) {
+            hintSocket.on('connect', () => {
+                console.log('Connected to server!');
+            });
+
+            hintSocket.emit('test', 'Ready to listen for AI hints')
+
+            // Listen for updates from server on problem status
+            hintSocket.on("hint", ()=>{});
+
         }
 
         return () => {
 
-            if (socket) {
-                socket.off("connect");
-                socket.off("status", updateProblemStatus);
-                socket.off("disconnect");
-                socket.disconnect();
+            if (statusSocket) {
+                statusSocket.off("connect");
+                statusSocket.off("status", updateProblemStatus);
+                statusSocket.off("disconnect");
+                statusSocket.disconnect();
+            }
+
+            if (hintSocket) {
+                hintSocket.off("connect");
+                hintSocket.off("hint", ()=>{});
+                hintSocket.off("disconnect");
+                hintSocket.disconnect();
             }
         }
-    }, [socket]);
+    }, [statusSocket, hintSocket]);
     
     const processProblemData = (data: ProblemDetails): ProblemDetails => {
         if (typeof window === 'undefined') {
