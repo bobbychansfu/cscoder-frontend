@@ -11,6 +11,7 @@ export default function MainPage() {
     const searchParams = useSearchParams();
 
     useEffect(() => {
+
         const ticket = searchParams.get('ticket');
 
         if (ticket) {
