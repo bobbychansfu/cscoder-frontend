@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
-import { useParams } from "next/navigation";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import React, {useEffect, useRef, useState} from "react";
+import {useParams} from "next/navigation";
+import {Card} from "@/components/ui/card";
+import {Button} from "@/components/ui/button";
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
 import CodeEditor from "@/components/CodeEditor";
 import Script from "next/script";
 import {io, Socket} from "socket.io-client"
+import {useSubmissions} from "@/lib/SubmissionsContext";
 
 interface ProblemDetails {
     pid: number;
@@ -36,15 +37,17 @@ interface ProblemStatus {
     error: string | null
 }
 
+interface AIHint {
+    code: string | null;
+    hint: string | null;
+    request_num: number | null;
+}
+
 declare global {
     interface Window {
         MathJax: any;
     }
 }
-
-import {
-    useSubmissions
-} from "@/lib/SubmissionsContext";
 
 export default function CodingPage() {
     const { cid, pid } = useParams();
@@ -61,6 +64,7 @@ export default function CodingPage() {
     const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
     const [statusSocket, setStatusSocket] = useState<Socket | null>(null)
     const [hintSocket, setHintSocket] = useState<Socket | null>(null);
+    const [aiHints, setAIHints] = useState<Array<AIHint>>([]);
 
     const descriptionRef = useRef<HTMLDivElement>(null);
 
@@ -71,6 +75,13 @@ export default function CodingPage() {
     function updateProblemStatus(status: ProblemStatus){
             console.log(JSON.stringify(status, null, 2));
             setSubmissionResult({...status});
+    }
+
+    function updateAIHints(ai_hint: AIHint) {
+        aiHints.concat(ai_hint);
+        console.log(JSON.stringify(aiHints, null, 2));
+
+        setAIHints(aiHints);
     }
 
     useEffect(() => {
@@ -137,7 +148,7 @@ export default function CodingPage() {
             hintSocket.emit('test', 'Ready to listen for AI hints')
 
             // Listen for updates from server on problem status
-            hintSocket.on("hint", ()=>{});
+            hintSocket.on("hint", updateAIHints);
 
         }
 
@@ -152,7 +163,7 @@ export default function CodingPage() {
 
             if (hintSocket) {
                 hintSocket.off("connect");
-                hintSocket.off("hint", ()=>{});
+                hintSocket.off("hint", updateAIHints);
                 hintSocket.off("disconnect");
                 hintSocket.disconnect();
             }
