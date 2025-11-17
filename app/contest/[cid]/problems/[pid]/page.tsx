@@ -38,9 +38,10 @@ interface ProblemStatus {
 }
 
 interface AIHint {
-    code: string | null;
-    hint: string | null;
-    request_num: number | null;
+    code: string | null,
+    hint: string | null,
+    validation: string | null,
+    request_num: number | null,
 }
 
 declare global {
@@ -78,10 +79,18 @@ export default function CodingPage() {
     }
 
     function updateAIHints(ai_hint: AIHint) {
-        aiHints.concat(ai_hint);
+
+        const most_recent_hint: AIHint | undefined = aiHints.at(-1);
+
+        if (most_recent_hint) {
+            ai_hint["request_num"] = most_recent_hint["request_num"] + 1;
+        } else {
+            ai_hint["request_num"] = 1;
+        }
+
         console.log(JSON.stringify(aiHints, null, 2));
 
-        setAIHints(aiHints);
+        setAIHints([...aiHints, ai_hint]);
     }
 
     useEffect(() => {
@@ -480,6 +489,18 @@ export default function CodingPage() {
                                     value={code}
                                     onChange={setCode}
                                 />
+
+                                <div className="flex justify-end">
+                                    <div>
+                                        <Button
+                                            className="bg-green-700 hover:bg-green-800 text-white flex-1 my-5"
+                                            onClick={handleRequestHint}
+                                        >
+                                            Request an AI Hint
+                                        </Button>
+                                    </div>
+
+                                </div>
                             </div>
 
                             <div className="mt-4 flex space-x-4">
