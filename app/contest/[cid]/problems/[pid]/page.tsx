@@ -88,7 +88,7 @@ export default function CodingPage() {
             ai_hint["request_num"] = 1;
         }
 
-        console.log(JSON.stringify(aiHints, null, 2));
+        console.log(`Received Hint: ${JSON.stringify(ai_hint)}`);
 
         setAIHints([...aiHints, ai_hint]);
     }
@@ -285,6 +285,37 @@ export default function CodingPage() {
             setSubmitting(false);
         }
     };
+
+    const handleRequestHint = async () => {
+
+        if (!cid || !pid || !problem) return;
+
+        try {
+
+            const request_data = {
+                problem: problem.title,
+                description: problem.description,
+                language: language,
+                code: code
+            };
+
+            const res = await fetch("/api/problems/hints", {
+                method: "POST",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(request_data),
+            });
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => null);
+                throw new Error(errData?.error || "Failed to request hint");
+            }
+
+        } catch (error) {
+            console.error("Error submitting code:", error);
+        }
+
+    }
 
 
     if (loading) {
