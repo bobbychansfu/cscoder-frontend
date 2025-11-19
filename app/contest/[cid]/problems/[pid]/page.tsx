@@ -10,6 +10,7 @@ import CodeEditor from "@/components/CodeEditor";
 import Script from "next/script";
 import {io, Socket} from "socket.io-client"
 import {useSubmissions} from "@/lib/SubmissionsContext";
+import {AIHintSideBar} from '@/components/AIHintSideBar'
 
 interface ProblemDetails {
     pid: number;
@@ -67,6 +68,7 @@ export default function CodingPage() {
     const [hintSocket, setHintSocket] = useState<Socket | null>(null);
     const [aiHints, setAIHints] = useState<Array<AIHint>>([]);
     const [waitingForHint, setWaitingForHint] = useState<boolean>(false);
+    const [sideBarOpen, setSideBarOpen] = useState(false);
 
     const descriptionRef = useRef<HTMLDivElement>(null);
 
@@ -81,17 +83,19 @@ export default function CodingPage() {
 
     function updateAIHints(ai_hint: AIHint) {
 
-        const most_recent_hint: AIHint | undefined = aiHints.at(-1);
+        setAIHints(prev => {
+            const most_recent_hint = prev.at(-1);
+            const request_num = most_recent_hint
+                ? most_recent_hint.request_num + 1
+                : 1;
 
-        if (most_recent_hint) {
-            ai_hint["request_num"] = most_recent_hint["request_num"] + 1;
-        } else {
-            ai_hint["request_num"] = 1;
-        }
+            const newHint = { ...ai_hint, request_num };
 
-        console.log(`Received Hint: ${JSON.stringify(ai_hint)}`);
+            console.log(`Received Hint: ${JSON.stringify(newHint)}`);
 
-        setAIHints([...aiHints, ai_hint]);
+            return [...prev, newHint];
+        });
+
         setWaitingForHint(false);
     }
 
@@ -321,6 +325,9 @@ export default function CodingPage() {
 
     }
 
+    function showHints() {
+        setSideBarOpen(!sideBarOpen)
+    }
 
     if (loading) {
         return <div className="min-h-screen flex items-center justify-center">Loading problem...</div>;
@@ -362,6 +369,8 @@ export default function CodingPage() {
                     }
                 }}
             />
+
+            <AIHintSideBar open={sideBarOpen} hints={aiHints} />
 
             <main className="max-w-7xl mx-auto">
                 <h1 className="text-2xl font-bold text-red-700 mb-4">
@@ -554,13 +563,31 @@ export default function CodingPage() {
                                         </div>
                                     </div>
 
-                                    <div>
-                                        <Button
-                                            className="bg-green-700 hover:bg-green-800 text-white flex-1 my-5"
-                                            onClick={handleRequestHint}
-                                        >
-                                            Request an AI Hint
-                                        </Button>
+                                    <div className="flex justify-end flex-col">
+
+                                        <div>
+
+                                            <Button
+                                                className="bg-green-700 hover:bg-green-800 text-white flex-1 my-5"
+                                                onClick={handleRequestHint}
+                                            >
+                                                Request an AI Hint
+                                            </Button>
+
+                                        </div>
+
+                                        <div className="flex justify-right">
+
+                                            <Button
+                                                className="bg-red-500 hover:bg-red-800 text-white flex-1"
+                                                onClick={showHints}
+                                            >
+                                                View Hints ({aiHints.length || 0})
+                                            </Button>
+
+
+                                        </div>
+
                                     </div>
 
                                 </div>

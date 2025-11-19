@@ -88,3 +88,10 @@ body {
     box-shadow: 2px 2px 5px #d1d1d1, -2px -2px 5px #ffffff;
   }
 }
+
+@font-face {
+    font-family: 'fira-code';
+    src: url('fonts/FiraCode-VF.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+}
