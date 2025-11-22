@@ -12,9 +12,9 @@ function HintSection (props: HintSectionProps) {
 
         <>
 
-            <div className="relative flex flex-col justify-center border-4 border-gray-300 text-center max-width-80 my-5 rounded-sm shadow-xl">
+            <div className="relative flex flex-col justify-center text-center max-width-80 my-5 p-2 rounded-sm shadow-[0_10px_15px_-3px_rgba(0,0,0,0.3)]">
 
-                <div>
+                <div className="mt-5">
                     <h3 className="font-bold text-black"> Hint {props.hint.request_num}</h3>
                 </div>
 
