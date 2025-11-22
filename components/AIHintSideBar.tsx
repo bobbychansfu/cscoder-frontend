@@ -14,7 +14,8 @@ function AIHintSideBar(props: SideBarProps){
             <div>
 
                 <div
-                    className={`fixed top-0 left-0 h-full w-[350px] bg-gray-200 text-red-800 p-4 transform transition-transform duration-300 rounded-md shadow-[15px_0px_10px_rgba(0,0,0,0.3)] ${
+                    className={`fixed top-0 left-0 h-full w-[350px] bg-gray-200 text-red-800 p-4 transform 
+                    transition-transform duration-300 rounded-md shadow-[10px_0px_10px_rgba(0,0,0,0.3)] overflow-auto ${
                         props.open ? "translate-x-0" : "-translate-x-full"
                     }`}
                 >
@@ -39,5 +40,4 @@ function AIHintSideBar(props: SideBarProps){
 
 }
 
-export {AIHintSideBar};
-export type {SideBarProps};
+export default AIHintSideBar;

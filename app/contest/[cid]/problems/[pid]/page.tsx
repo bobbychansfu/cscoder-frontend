@@ -10,7 +10,7 @@ import CodeEditor from "@/components/CodeEditor";
 import Script from "next/script";
 import {io, Socket} from "socket.io-client"
 import {useSubmissions} from "@/lib/SubmissionsContext";
-import {AIHintSideBar} from '@/components/AIHintSideBar'
+import AIHintSideBar from '@/components/AIHintSideBar'
 
 interface ProblemDetails {
     pid: number;
@@ -40,7 +40,7 @@ interface ProblemStatus {
 
 interface AIHint {
     code: string | null,
-    hint: string | null,
+    feedback: string | null,
     validation: string | null,
     request_num: number | null,
 }
