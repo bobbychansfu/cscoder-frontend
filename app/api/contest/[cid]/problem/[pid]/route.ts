@@ -55,7 +55,9 @@ export async function POST(
         const body = await req.json();
         const cookie = req.headers.get("cookie") ?? "";
         
-        const { code, language } = body;
+        const { code, language, connection_id } = body;
+
+        console.log(code, language, connection_id);
         
         const backendRes = await fetch(`http://localhost:5000/s/submit/${cid}/${pid}`, {
             method: "POST",
@@ -66,7 +68,8 @@ export async function POST(
             credentials: 'include',
             body: JSON.stringify({ 
                 textcode: code,
-                language: language 
+                language: language,
+                connection_id: connection_id
             }),
         });
 

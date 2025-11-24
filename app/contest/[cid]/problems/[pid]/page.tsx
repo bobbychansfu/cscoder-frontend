@@ -69,7 +69,7 @@ export default function CodingPage() {
     const [aiHints, setAIHints] = useState<Array<AIHint>>([]);
     const [waitingForHint, setWaitingForHint] = useState<boolean>(false);
     const [sideBarOpen, setSideBarOpen] = useState(false);
-
+    const [connectionID, setConnectionID] = useState<string | null>(null);
     const descriptionRef = useRef<HTMLDivElement>(null);
 
     const liveStatus = submissionResult?.sid ? submissions.get(submissionResult.sid)?.status : null;
@@ -97,6 +97,51 @@ export default function CodingPage() {
         });
 
         setWaitingForHint(false);
+    }
+
+    async function establishSocketConnection() {
+
+        if (!cid || !pid) return;
+
+        const response = await fetch(`/api/user`, {
+            credentials: "include",
+        });
+
+        if (!response.ok) {
+
+            const errData = await response.json().catch(() => null);
+            throw Error(errData?.error || "Failed to retrieve user data");
+
+        } else {
+
+            const user_data = await response.json()
+
+            console.log(JSON.stringify(user_data, null, 2));
+            const connection_id = {
+                user_id: user_data.user.computing_id,
+                pid: pid
+            }
+
+            console.log("Establishing connection with ID: ", JSON.stringify(connection_id, null, 4));
+
+            setConnectionID(JSON.stringify(connection_id));
+
+            const status_socket = io(`${BACKEND_URL}/status`, {
+                auth: {
+                    user_id: JSON.stringify(connection_id),
+                }
+            });
+            setStatusSocket(status_socket);
+
+            const hint_socket = io(`${BACKEND_URL}/ai_hints`, {
+                auth: {
+                    user_id: JSON.stringify(connection_id),
+                }
+            });
+            setHintSocket(hint_socket);
+
+        }
+
     }
 
     useEffect(() => {
@@ -133,11 +178,11 @@ export default function CodingPage() {
                 setLoading(false);
             });
 
-        const status_socket = io(`${BACKEND_URL}/status`);
-        setStatusSocket(status_socket);
-
-        const hint_socket = io(`${BACKEND_URL}/ai_hints`);
-        setHintSocket(hint_socket);
+        try {
+            establishSocketConnection();
+        } catch (err) {
+            console.error("Error establishing socket connection:", err);
+        }
 
     }, [cid, pid]);
 
@@ -262,12 +307,12 @@ export default function CodingPage() {
         try {
             setSubmitting(true);
             setSubmissionResult(null);
-            
+
             const res = await fetch(`/api/contest/${cid}/problem/${pid}`, {
                 method: "POST",
                 credentials: "include",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ code, language }),
+                body: JSON.stringify({ code, language, connection_id: connectionID }),
             });
 
             if (!res.ok) {
@@ -303,7 +348,8 @@ export default function CodingPage() {
                 description: problem.description,
                 language: language,
                 code: code,
-                pid: pid
+                pid: pid,
+                connection_id: connectionID
             };
 
             const res = await fetch("/api/problems/hints", {
