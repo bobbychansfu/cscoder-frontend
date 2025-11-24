@@ -302,7 +302,8 @@ export default function CodingPage() {
                 problem: problem.title,
                 description: problem.description,
                 language: language,
-                code: code
+                code: code,
+                pid: pid
             };
 
             const res = await fetch("/api/problems/hints", {

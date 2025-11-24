@@ -14,7 +14,7 @@ function AIHintSideBar(props: SideBarProps){
             <div>
 
                 <div
-                    className={`fixed top-0 left-0 h-full w-[350px] bg-gray-200 text-red-800 p-4 transform 
+                    className={`fixed top-0 left-0 h-full min-w-[350px] max-w-[450px] bg-gray-200 text-red-800 p-4 transform 
                     transition-transform duration-300 rounded-md shadow-[10px_0px_10px_rgba(0,0,0,0.3)] overflow-auto ${
                         props.open ? "translate-x-0" : "-translate-x-full"
                     }`}
