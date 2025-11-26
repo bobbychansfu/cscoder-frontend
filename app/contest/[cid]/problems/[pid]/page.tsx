@@ -42,7 +42,7 @@ interface AIHint {
     code: string | null,
     feedback: string | null,
     validation: string | null,
-    request_num: number | null,
+    hint_num: number | null,
 }
 
 declare global {
@@ -81,27 +81,8 @@ export default function CodingPage() {
             setSubmissionResult({...status});
     }
 
-    function updateAIHints(ai_hint: AIHint) {
 
-        setAIHints(prev => {
-            const most_recent_hint = prev.at(-1);
-            const request_num = most_recent_hint
-                ? most_recent_hint.request_num + 1
-                : 1;
-
-            const newHint = { ...ai_hint, request_num };
-
-            console.log(`Received Hint: ${JSON.stringify(newHint)}`);
-
-            return [...prev, newHint];
-        });
-
-        setWaitingForHint(false);
-    }
-
-    async function establishSocketConnection() {
-
-        if (!cid || !pid) return;
+    async function getUserData(){
 
         const response = await fetch(`/api/user`, {
             credentials: "include",
@@ -114,11 +95,69 @@ export default function CodingPage() {
 
         } else {
 
-            const user_data = await response.json()
+            return (await response.json()).user;
+
+        }
+
+    }
+
+
+    async function getHints() {
+
+        if (!cid || !pid) return;
+
+        try {
+
+            const user_data = await getUserData();
+
+            const computing_id = user_data.computing_id;
+
+            const response = await fetch(`/api/problems/hints?computing_id=${computing_id}&pid=${pid}`, {
+                method: "GET",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+            });
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => null);
+                throw Error(errData?.error || "Failed to retrieve hints");
+            }
+
+            const data = await response.json();
+
+            const hints = data.hints;
+
+            setAIHints(hints);
+
+        } catch (error) {
+            console.error(error.message);
+        }
+
+    }
+
+    function updateAIHints(new_hint: AIHint) {
+
+        setAIHints(prev => {
+
+            console.log(`Received Hint: ${JSON.stringify(new_hint)}`);
+
+            return [...prev, new_hint];
+        });
+
+        setWaitingForHint(false);
+    }
+
+    async function establishSocketConnection() {
+
+        if (!cid || !pid) return;
+
+        try {
+
+            const user_data = await getUserData();
 
             console.log(JSON.stringify(user_data, null, 2));
             const connection_id = {
-                user_id: user_data.user.computing_id,
+                user_id: user_data.computing_id,
                 pid: pid
             }
 
@@ -140,7 +179,10 @@ export default function CodingPage() {
             });
             setHintSocket(hint_socket);
 
+        } catch (error) {
+            console.error("Error establishing socket connection:", error.message);
         }
+
 
     }
 
@@ -178,11 +220,8 @@ export default function CodingPage() {
                 setLoading(false);
             });
 
-        try {
-            establishSocketConnection();
-        } catch (err) {
-            console.error("Error establishing socket connection:", err);
-        }
+        establishSocketConnection();
+        getHints();
 
     }, [cid, pid]);
 
