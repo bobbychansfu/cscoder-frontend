@@ -6,16 +6,19 @@ interface CodeSegmentProps {
 
 function CodeSegment (props: CodeSegmentProps) {
 
-    const formatted_code = props.code.replace(/\\n/g, "\n");
+    // const formatted_code = props.code.replace(/\\n/g, "\n");
 
     return (
 
         <>
-            <div className="rounded-sm bg-gray-300 w-auto h-auto p-2 m-3 overflow-auto">
-
-                <p className="font-firacode text-black"> {formatted_code} </p>
-
-            </div>
+            <pre
+                className="rounded-sm bg-gray-300 w-auto h-auto max-w-[450px] max-h-[170px] p-2 m-3
+               overflow-auto whitespace-pre"
+            >
+                <code className="font-firacode text-black text-left">
+                    {props.code}
+                </code>
+            </pre>
         </>
     )
 
