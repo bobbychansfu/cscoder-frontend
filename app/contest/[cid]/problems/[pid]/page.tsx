@@ -137,12 +137,16 @@ export default function CodingPage() {
 
     function updateAIHints(new_hint: AIHint) {
 
-        setAIHints(prev => {
+        if (new_hint.hint_num === -1) {
 
-            console.log(`Received Hint: ${JSON.stringify(new_hint)}`);
+            console.error(new_hint.feedback);
 
-            return [...prev, new_hint];
-        });
+        } else {
+            setAIHints(prev => {
+                console.log(`Received Hint: ${JSON.stringify(new_hint)}`);
+                return [...prev, new_hint];
+            });
+        }
 
         setWaitingForHint(false);
     }
@@ -407,6 +411,7 @@ export default function CodingPage() {
 
         } catch (error) {
             console.error("Error requesting hint:", error);
+            setWaitingForHint(false);
         }
 
     }
