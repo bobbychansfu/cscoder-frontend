@@ -224,8 +224,10 @@ export default function CodingPage() {
                 setLoading(false);
             });
 
-        establishSocketConnection();
-        getHints();
+        (async () => {
+            await establishSocketConnection();
+            await getHints();
+        })()
 
     }, [cid, pid]);
 
