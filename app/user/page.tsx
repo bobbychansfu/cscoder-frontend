@@ -26,6 +26,7 @@ interface UserData {
 
 export default function UserAccount() {
     const [userData, setUserData] = useState<UserData | null>(null);
+    const [achievements, setAchievements] = useState<any>(null)
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
@@ -57,6 +58,25 @@ export default function UserAccount() {
                 setLoading(false);
             });
     }, [router, casLoginUrl]);
+
+    useEffect(() => {
+        fetch(`/api/achievements`, {
+            credentials: "include",
+        })
+            .then(async (res) => {
+                if (!res.ok) {
+                    throw new Error("Failed to fetch achievements");
+                }
+                return await res.json();
+            })
+            .then((data) => {
+                setAchievements(data);
+            })
+            .catch((err) => {
+                console.error("Fetch achievements error:", err);
+                setAchievements({ totalXp: 0 });
+            });
+    }, []);
 
     if (loading) {
         return (
@@ -110,6 +130,12 @@ export default function UserAccount() {
                             title="Points"
                             value={user.points_acquired}
                         />
+                        <StatCard
+                            icon={<Star className="w-6 h-6 text-red-700" />}
+                            title="Achievements"
+                            value={achievements?.totalXp ?? 0}
+                            onClick={() => router.push("/achievements")}
+                        />
                     </div>
                 </Card>
 
@@ -149,11 +175,21 @@ interface StatCardProps {
     icon: React.ReactNode;
     title: string;
     value: number;
+    onClick?: () => void;  
 }
 
-function StatCard({ icon, title, value }: StatCardProps) {
+function StatCard({ icon, title, value, onClick }: StatCardProps) {
+    const clickable = !!onClick;
+
     return (
-        <div className="bg-white p-4 rounded-lg shadow-sm flex items-center space-x-4">
+        <div onClick={onClick}
+            role={clickable ? "button" : undefined}
+            tabIndex={clickable ? 0 : undefined}
+            className={
+                "bg-white p-4 rounded-lg shadow-sm flex items-center space-x-4 " +
+                (clickable ? "cursor-pointer hover:shadow-md transition-shadow" : "")
+            }
+        >
             {icon}
             <div>
                 <h2 className="text-sm font-medium text-gray-500">{title}</h2>
