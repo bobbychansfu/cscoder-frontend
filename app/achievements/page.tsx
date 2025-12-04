@@ -1,205 +1,177 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
-// ------------------------------------------------------------
-// Types
-// ------------------------------------------------------------
-type EarnedAchievement = {
-  id: string
+type BaseAchievement = {
+  id: string          
+  achievementId: number 
   name: string
   description?: string
-  earnedAt: string // ISO date string
+}
+type EarnedAchievement = BaseAchievement & {
+  earnedAt: string
 }
 
-type LockedAchievement = {
-  id: string
-  name: string
-  description?: string
+type LockedAchievement = BaseAchievement & {
   xp: number
   xpGoal: number
 }
 
 type Achievement = EarnedAchievement | LockedAchievement
-type Section = { title: string; items: Achievement[] }
+type Section = { title: string; items: (EarnedAchievement | LockedAchievement)[] }
 
 function isEarned(a: Achievement): a is EarnedAchievement {
   return (a as EarnedAchievement).earnedAt !== undefined
 }
 
-// ------------------------------------------------------------
-// Demo data by SECTION (replace with API results later)
-// ------------------------------------------------------------
-const sections: Section[] = [
-  {
-    title: 'Basic Skills',
-    items: [
-      {
-        id: 'basic-hello-world',
-        name: 'Hello, World!',
-        description: 'Your first successful submission.',
-        earnedAt: '2025-08-01T14:22:00Z'
-      },
-      {
-        id: 'basic-syntax-tamer',
-        name: 'Syntax Tamer',
-        description: 'Solve problems that require correct syntax & I/O.',
-        xp: 120,
-        xpGoal: 300
-      },
-      {
-        id: 'basic-loop-master',
-        name: 'Loop Master',
-        description: 'Solve loop-focused challenges.',
-        xp: 40,
-        xpGoal: 200
-      },
-      {
-        id: 'basic-recursive-thinker',
-        name: 'Recursive Thinker',
-        description: 'Crack recursion problems without stack overflow (yours!).',
-        xp: 80,
-        xpGoal: 250
-      },
-      {
-        id: 'basic-code-alchemist',
-        name: 'Code Alchemist',
-        description: 'Complete all Basic Skills challenges.',
-        xp: 0,
-        xpGoal: 1000
-      }
-    ]
-  },
-  {
-    title: 'Data Structures',
-    items: [
-      {
-        id: 'ds-array-apprentice',
-        name: 'Array Apprentice',
-        description: 'Solve your first array problem.',
-        earnedAt: '2025-06-15T04:10:00Z'
-      },
-      {
-        id: 'ds-linked-list-builder',
-        name: 'Linked List Builder',
-        description: 'Implement/solve linked list tasks.',
-        xp: 180,
-        xpGoal: 400
-      },
-      {
-        id: 'ds-stack-commander',
-        name: 'Stack Commander',
-        description: 'Master stack & queue problems.',
-        xp: 260,
-        xpGoal: 500
-      },
-      {
-        id: 'ds-tree-whisperer',
-        name: 'Tree Whisperer',
-        description: 'Traverse and query trees with confidence.',
-        xp: 150,
-        xpGoal: 600
-      },
-      {
-        id: 'ds-graph-explorer',
-        name: 'Graph Explorer',
-        description: 'Solve BFS/DFS style problems.',
-        xp: 320,
-        xpGoal: 700
-      },
-      {
-        id: 'ds-data-architect',
-        name: 'Data Architect',
-        description: 'Complete all Data Structures challenges.',
-        xp: 520,
-        xpGoal: 1200
-      }
-    ]
-  },
-  {
-    title: 'Algorithms',
-    items: [
-      {
-        id: 'algo-sorting-sorcerer',
-        name: 'Sorting Sorcerer',
-        description: 'Tame arrays with O(n log n) flair.',
-        earnedAt: '2025-01-05T19:30:00Z'
-      },
-      {
-        id: 'algo-search-seeker',
-        name: 'Search Seeker',
-        description: 'Binary search, two-pointers… seek and you shall find.',
-        xp: 110,
-        xpGoal: 300
-      },
-      {
-        id: 'algo-greedy-strategist',
-        name: 'Greedy Strategist',
-        description: 'Pick locally optimal moves for global wins.',
-        xp: 72,
-        xpGoal: 200
-      },
-      {
-        id: 'algo-divide-conqueror',
-        name: 'Divide & Conqueror',
-        description: 'Split problems and rule the subproblems.',
-        xp: 220,
-        xpGoal: 500
-      },
-      {
-        id: 'algo-dp-mastermind',
-        name: 'DP Mastermind',
-        description: 'Memoize/tabulate your way to victory.',
-        xp: 460,
-        xpGoal: 1000
-      },
-      {
-        id: 'algo-grandmaster',
-        name: 'Algorithm Grandmaster',
-        description: 'Complete all Algorithm challenges.',
-        xp: 890,
-        xpGoal: 2000
-      }
-    ]
-  },
-  {
-    title: 'Level-Up',
-    items: [
-      {
-        id: 'level-rising-coder',
-        name: 'Rising Coder',
-        description: 'Reach Level 5 overall.',
-        xp: 72,
-        xpGoal: 100
-      },
-      {
-        id: 'level-bug-slayer',
-        name: 'Bug Slayer',
-        description: 'Reach Level 10 overall.',
-        xp: 460,
-        xpGoal: 1000
-      },
-      {
-        id: 'level-code-warrior',
-        name: 'Code Warrior',
-        description: 'Reach Level 20 overall.',
-        xp: 1200,
-        xpGoal: 2000
-      },
-      {
-        id: 'level-legendary-dev',
-        name: 'Legendary Developer',
-        description: 'Reach max level.',
-        xp: 0,
-        xpGoal: 5000
-      }
-    ]
-  }
-]
+type AchievementRow = {
+  achievement_id: number
+  name: string
+  description?: string
+  xp_reward: number
+  topic_id: number | null
+  earned_at: string | null
+  earned: boolean
+}
 
-// ------------------------------------------------------------
-// Helpers
-// ------------------------------------------------------------
+type TopicXpRow = {
+  topic_id: number
+  xp: number
+}
+
+type AchievementsApiResponse = {
+  computingId: string
+  achievementRows: AchievementRow[]
+  topicXpRows: TopicXpRow[]
+  totalXp: number
+}
+
+function AchievementIcon({achievementId, grayscale,}: {
+  achievementId: number
+  grayscale?: boolean
+}) {
+  const src = `/api/achievements/${achievementId}/icon`
+
+  return (
+    <div
+      className={`h-20 w-20 overflow-hidden rounded-full bg-white shadow-sm flex items-center justify-center ${
+        grayscale ? 'opacity-50' : ''
+      }`}
+    >
+      <img
+        src={src}
+        alt=""
+        className="h-full w-full object-contain"
+      />
+    </div>
+  )
+}
+function xpGoalForId(id: number): number {
+  if ((id >= 2001 && id <= 2005) || (id >= 3001 && id <= 3005)) {
+    return 400
+  }
+  return 0
+}
+
+
+function isXpBasedId(id: number): boolean {
+  return (id >= 2001 && id <= 2005) || (id >= 3001 && id <= 3005)
+}
+
+function isSituationBasedId(id: number): boolean {
+  return (id >= 1001 && id <= 1005) || id === 2006 || id === 3006
+}
+
+function getXpLevel(xp: number): 0 | 1 | 2 | 3 {
+  if (xp >= 400) return 3
+  if (xp >= 180) return 2
+  if (xp >= 60)  return 1
+  return 0
+}
+
+function levelToRingClass(level: 0 | 1 | 2 | 3): string {
+  switch (level) {
+    case 0:
+      return 'from-slate-200 to-slate-400'     // grey
+    case 1:
+      return 'from-amber-900 to-orange-500'    // copper
+    case 2:
+      return 'from-gray-200 to-gray-400'       // silver
+    case 3:
+    default:
+      return 'from-yellow-200 to-amber-400'    // gold
+  }
+}
+
+function sectionTitleForId(idNum: number): string {
+  if (idNum >= 1000 && idNum < 2000) return 'Basic Journey'
+  if (idNum >= 2000 && idNum < 3000) return 'Data Structures'
+  if (idNum >= 3000 && idNum < 4000) return 'Algorithms'
+  return 'Other Achievements'
+}
+
+function logicalIdForId(idNum: number): string {
+  if (idNum >= 1000 && idNum < 2000) return `basic-${idNum}`
+  if (idNum >= 2000 && idNum < 3000) return `ds-${idNum}`
+  if (idNum >= 3000 && idNum < 4000) return `algo-${idNum}`
+  return `level-${idNum}`
+}
+
+function buildSections(achievementRows: AchievementRow[], topicXpRows: TopicXpRow[]): Section[] {
+  // map topic_id -> xp from solved problems
+  const topicXpMap = new Map<number, number>(
+    topicXpRows.map((row) => [Number(row.topic_id), Number(row.xp)])
+  )
+
+  const sectionsMap = new Map<string, Section>() // title -> Section
+
+  const ensureSection = (title: string): Section => {
+    if (!sectionsMap.has(title)) {
+      sectionsMap.set(title, { title, items: [] })
+    }
+    return sectionsMap.get(title)!
+  }
+
+  for (const row of achievementRows) {
+    const idNum = Number(row.achievement_id)
+    const sectionTitle = sectionTitleForId(idNum) 
+    const section = ensureSection(sectionTitle)
+
+    const earned = row.earned
+    const earnedAt = row.earned_at
+    const topicId = Number(row.topic_id ?? 0)
+    const xpForTopic = topicXpMap.get(topicId) || 0
+
+    const xpGoal = xpGoalForId(idNum)
+    const logicalId = logicalIdForId(idNum)
+
+    if (earned) {
+      // unlocked badge
+      section.items.push({
+        id: logicalId,
+        achievementId: idNum,
+        name: row.name,
+        description: row.description,
+        earnedAt: earnedAt
+          ? new Date(earnedAt).toISOString()
+          : new Date().toISOString(),
+      })
+    } else {
+      // locked badge with progress bar
+      section.items.push({
+        id: logicalId,
+        name: row.name,
+        achievementId: idNum,  
+        description: row.description,
+        xp: xpForTopic,
+        xpGoal: xpGoal || 1, // avoid divide-by-zero
+      })
+    }
+  }
+
+  return Array.from(sectionsMap.values())
+}
+
 function fmtDate(iso?: string) {
   if (!iso) return ''
   const d = new Date(iso)
@@ -209,46 +181,7 @@ function fmtDate(iso?: string) {
     day: 'numeric'
   })
 }
-
-function iconFor(id: string) {
-  // BASIC = star/book
-  if (id.startsWith('basic'))
-    return (
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-        <path d="M4 5a3 3 0 013-3h11v17H7a3 3 0 00-3 3V5zM7 2v17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    )
-  // DATA STRUCTURES = stacked boxes / target
-  if (id.startsWith('ds'))
-    return (
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-        <rect x="3" y="3" width="7" height="7" stroke="currentColor" strokeWidth="2" />
-        <rect x="14" y="3" width="7" height="7" stroke="currentColor" strokeWidth="2" />
-        <rect x="3" y="14" width="7" height="7" stroke="currentColor" strokeWidth="2" />
-        <rect x="14" y="14" width="7" height="7" stroke="currentColor" strokeWidth="2" />
-      </svg>
-    )
-  // ALGORITHMS = chess rook
-  if (id.startsWith('algo'))
-    return (
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-        <path d="M7 9h10V5l-2-2h-6L7 5v4Zm-2 11h14v-2l-2-5H7l-2 5v2Z" stroke="currentColor" strokeWidth="2" />
-      </svg>
-    )
-  // LEVEL-UP = trophy
-  if (id.startsWith('level'))
-    return (
-      <svg viewBox="0 0 24 24" fill="none" aria-hidden>
-        <path d="M8 4h8v3a4 4 0 0 1-4 4 4 4 0 0 1-4-4V4Zm-3 3h3a4 4 0 0 1-4 4V7Zm14 0h3v4a4 4 0 0 1-4-4Z" stroke="currentColor" strokeWidth="2" />
-        <path d="M9 19h6M8 16h8v3H8z" stroke="currentColor" strokeWidth="2" />
-      </svg>
-    )
-  return null
-}
-
-// ------------------------------------------------------------
-// Components
-// ------------------------------------------------------------
+   
 function Modal({
   open,
   onClose,
@@ -260,6 +193,7 @@ function Modal({
 }) {
   if (!open || !achievement) return null
   const earned = isEarned(achievement)
+  const xpBased = isXpBasedId(achievement.achievementId)
 
   return (
     <div
@@ -270,12 +204,11 @@ function Modal({
     >
       <div className="w-[min(520px,92vw)] rounded-2xl border border-border bg-card text-card-foreground shadow p-4">
         <header className="mb-2 flex items-center gap-3">
-          <div
-            className={`badge grid h-20 w-20 place-items-center rounded-2xl ring-1 shadow bg-gradient-to-br from-yellow-200 to-amber-400 ring-yellow-200/40 ${
-              earned ? '' : 'grayscale-[.85]'
-            }`}
-          >
-            <div className="h-12 w-12 text-primary">{iconFor(achievement.id)}</div>
+          <div className="mb-2 flex justify-center">
+            <AchievementIcon
+              achievementId={achievement.achievementId}
+              grayscale={!earned && !isXpBasedId(achievement.achievementId)}
+            />
           </div>
           <h3 className="text-xl font-semibold">{achievement.name}</h3>
           <button
@@ -305,6 +238,26 @@ function Modal({
 
 function BadgeCard({ a, onClick }: { a: Achievement; onClick: () => void }) {
   const earned = isEarned(a)
+  const idNum = a.achievementId
+  const xpBased = isXpBasedId(idNum)
+  const situationBased = isSituationBasedId(idNum)
+
+  const hasXpField = !earned && 'xp' in a
+  const currentXp = xpBased && hasXpField ? (a as LockedAchievement).xp : 0
+
+  let level: 0 | 1 | 2 | 3
+  if (xpBased) {
+    level = getXpLevel(currentXp)
+  } else if (situationBased) {
+    level = earned ? 3 : 0
+  } else {
+    level = earned ? 3 : 0
+  }
+
+  const ringClass = levelToRingClass(level)
+  const grayscale = level === 0
+
+  const showProgress = xpBased && !earned && 'xpGoal' in a
   const percent = useMemo(
     () => (!earned && 'xpGoal' in a ? Math.min(100, Math.round((a.xp / a.xpGoal) * 100)) : 100),
     [a, earned]
@@ -322,18 +275,21 @@ function BadgeCard({ a, onClick }: { a: Achievement; onClick: () => void }) {
           earned ? '' : 'grayscale-[.85]'
         }`}
       >
-        <div className="h-12 w-12 text-primary">{iconFor(a.id)}</div>
+        <AchievementIcon
+          achievementId={a.achievementId}
+          grayscale={!earned}
+        />
       </div>
       <div className="mt-1 text-sm font-semibold">{a.name}</div>
       <div className="text-xs text-muted-foreground">
         {earned ? `Earned on ${fmtDate(a.earnedAt)}` : 'Not earned yet'}
       </div>
 
-      {!earned && 'xpGoal' in a ? (
+     {showProgress ? (
         <>
           <div className="relative mt-2 h-2 w-full overflow-hidden rounded-full border bg-muted">
             <div className="absolute right-2 -top-5 text-xs text-muted-foreground">
-              {a.xp}/{a.xpGoal} XP
+              {(a as LockedAchievement).xp}/{(a as LockedAchievement).xpGoal} XP
             </div>
             <div
               className="h-full w-0 rounded-full bg-gradient-to-r from-amber-400 to-blue-400 transition-[width] duration-1000"
@@ -346,30 +302,89 @@ function BadgeCard({ a, onClick }: { a: Achievement; onClick: () => void }) {
         </>
       ) : (
         <div className="mt-2 inline-flex items-center gap-1 rounded-full border bg-secondary px-2 py-1 text-xs text-secondary-foreground">
-          Unlocked
+          {earned
+            ? 'Unlocked'
+            : situationBased
+              ? 'Complete the condition to unlock'
+              : 'Start solving problems to gain XP'}
         </div>
       )}
     </button>
   )
 }
 
-// ------------------------------------------------------------
-// Page Component
-// ------------------------------------------------------------
+
 export default function Page() {
-  const [data] = useState<Section[]>(sections)
+  const [data, setData] = useState<Section[]>([])
+  const [totalXp, setTotalXp] = useState<number>(0)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [open, setOpen] = useState(false)
   const [current, setCurrent] = useState<Achievement | undefined>(undefined)
 
+  useEffect(() => {
+    const LoadAchievements = async () => {
+      try {
+        const res = await fetch('/api/achievements', {
+          method: 'GET',
+        })
+
+        if (!res.ok) {
+          throw new Error('Failed to load achievements')
+        }
+
+        const json = await res.json() as {
+          computingId: string
+          achievements: AchievementRow[]
+          topicXp: TopicXpRow[]
+          totalXp: number
+        }
+        console.log('API achievements:', json)
+
+        const sections = buildSections(json.achievements, json.topicXp)
+        setData(sections)
+        setTotalXp(json.totalXp || 0)
+      } catch (err) {
+        console.error('[Achievements] Error loading', err)
+        setError('Could not load achievements from server.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    LoadAchievements()
+  },[])
   return (
-    <main className="mx-auto mb-16 mt-10 max-w-[1100px] px-5">
+   <main className="mx-auto mb-16 mt-10 max-w-[1100px] px-5">
       <header className="mb-3 flex items-baseline gap-3">
         <h1 className="text-2xl font-bold sm:text-3xl">All Achievements</h1>
         <p className="text-sm text-muted-foreground">
-          Click any badge to see details. Locked ones show your XP progress.
+          Click any badge to see details.
         </p>
+        <span className="ml-auto text-sm text-muted-foreground">
+          Total XP:{' '}
+          <span className="font-semibold text-primary">{totalXp}</span>
+        </span>
       </header>
 
+      {loading && (
+        <p className="mb-4 text-sm text-muted-foreground">
+          Loading achievements...
+        </p>
+      )}
+
+      {error && (
+        <p className="mb-4 text-sm text-red-500">
+          {error}
+        </p>
+      )}
+
+      {!loading && !error && data.length === 0 && (
+        <p className="mb-4 text-sm text-muted-foreground">
+          No achievements yet.
+        </p>
+      )}
+      
       {data.map((sec) => (
         <section key={sec.title} className="mb-8">
           <h2 className="mb-3 text-lg font-semibold">{sec.title}</h2>
