@@ -1,18 +1,20 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { AchievementIcon } from '@/components/ui/achievement_icon'
 
-type BaseAchievement = {
+interface BaseAchievement {
   id: string          
   achievementId: number 
   name: string
   description?: string
 }
-type EarnedAchievement = BaseAchievement & {
+
+interface EarnedAchievement extends BaseAchievement {
   earnedAt: string
 }
 
-type LockedAchievement = BaseAchievement & {
+interface LockedAchievement extends BaseAchievement {
   xp: number
   xpGoal: number
 }
@@ -20,6 +22,10 @@ type LockedAchievement = BaseAchievement & {
 type Achievement = EarnedAchievement | LockedAchievement
 type Section = { title: string; items: (EarnedAchievement | LockedAchievement)[] }
 
+/* 
+ *Narrow Achievement -> EarnedAchievement when earnedAt is present
+ *Checks whether an achievement has been earned
+ */
 function isEarned(a: Achievement): a is EarnedAchievement {
   return (a as EarnedAchievement).earnedAt !== undefined
 }
@@ -46,42 +52,35 @@ type AchievementsApiResponse = {
   totalXp: number
 }
 
-function AchievementIcon({achievementId, grayscale,}: {
-  achievementId: number
-  grayscale?: boolean
-}) {
-  const src = `/api/achievements/${achievementId}/icon`
-
-  return (
-    <div
-      className={`h-20 w-20 overflow-hidden rounded-full bg-white shadow-sm flex items-center justify-center ${
-        grayscale ? 'opacity-50' : ''
-      }`}
-    >
-      <img
-        src={src}
-        alt=""
-        className="h-full w-full object-contain"
-      />
-    </div>
-  )
-}
-function xpGoalForId(id: number): number {
-  if ((id >= 2001 && id <= 2005) || (id >= 3001 && id <= 3005)) {
-    return 400
-  }
-  return 0
-}
-
-
+/* Returns true if this achievement ID is an XP-based progress achievement */
 function isXpBasedId(id: number): boolean {
   return (id >= 2001 && id <= 2005) || (id >= 3001 && id <= 3005)
 }
 
+/* Returns true if this achievement is unlocked by a specific situation */
 function isSituationBasedId(id: number): boolean {
   return (id >= 1001 && id <= 1005) || id === 2006 || id === 3006
 }
 
+/*
+ *Returns the XP goal (target) for this achievement ID
+ *XP-based achievements share a fixed goal of 400 XP
+ *All other achievements use 1
+*/
+function xpGoalForId(id: number): number {
+  if (isXpBasedId(id)) {
+    return 400
+  }
+  return 1
+}
+
+/* 
+ *Maps a raw XP amount into a visual “level” from 0–3.
+ *Level 0: 0 <= xp < 60
+ *Level 1: 60 <= xp < 180
+ *Level 2: 180 <= xp < 400
+ *Level 3: 400 <= xpS
+ */
 function getXpLevel(xp: number): 0 | 1 | 2 | 3 {
   if (xp >= 400) return 3
   if (xp >= 180) return 2
@@ -89,6 +88,9 @@ function getXpLevel(xp: number): 0 | 1 | 2 | 3 {
   return 0
 }
 
+/*
+ *Return color of the icon
+*/
 function levelToRingClass(level: 0 | 1 | 2 | 3): string {
   switch (level) {
     case 0:
@@ -103,6 +105,7 @@ function levelToRingClass(level: 0 | 1 | 2 | 3): string {
   }
 }
 
+/*Chooses the section title for an achievement based on its ID range*/
 function sectionTitleForId(idNum: number): string {
   if (idNum >= 1000 && idNum < 2000) return 'Basic Journey'
   if (idNum >= 2000 && idNum < 3000) return 'Data Structures'
@@ -110,6 +113,10 @@ function sectionTitleForId(idNum: number): string {
   return 'Other Achievements'
 }
 
+/*
+ *Builds a stable logical id string for a badge (used as React key and item id)
+ *The prefix encodes the section (basic / ds / algo) for easier debugging
+ */
 function logicalIdForId(idNum: number): string {
   if (idNum >= 1000 && idNum < 2000) return `basic-${idNum}`
   if (idNum >= 2000 && idNum < 3000) return `ds-${idNum}`
@@ -117,6 +124,15 @@ function logicalIdForId(idNum: number): string {
   return `level-${idNum}`
 }
 
+/*
+ * Converts raw rows from the /api/achievements endpoint into UI sections.
+ *
+ * - Uses topicXpRows to look up XP earned for each topic.
+ * - Groups achievements into sections by ID range.
+ * - For earned achievements, creates EarnedAchievement items.
+ * - For locked achievements, creates LockedAchievement items with xp/xpGoal
+ *   so the UI can render progress bars safely (xpGoal defaults to 1).
+ */
 function buildSections(achievementRows: AchievementRow[], topicXpRows: TopicXpRow[]): Section[] {
   // map topic_id -> xp from solved problems
   const topicXpMap = new Map<number, number>(
@@ -164,7 +180,7 @@ function buildSections(achievementRows: AchievementRow[], topicXpRows: TopicXpRo
         achievementId: idNum,  
         description: row.description,
         xp: xpForTopic,
-        xpGoal: xpGoal || 1, // avoid divide-by-zero
+        xpGoal: xpGoal,
       })
     }
   }
@@ -172,6 +188,10 @@ function buildSections(achievementRows: AchievementRow[], topicXpRows: TopicXpRo
   return Array.from(sectionsMap.values())
 }
 
+/*
+ * Formats an ISO date string like "2025-01-01T12:00:00Z"
+ * into a short, locale-aware date for display in the UI.
+ */
 function fmtDate(iso?: string) {
   if (!iso) return ''
   const d = new Date(iso)
@@ -181,7 +201,12 @@ function fmtDate(iso?: string) {
     day: 'numeric'
   })
 }
-   
+
+/*
+ * Modal dialog that shows full details for a single achievement.
+ * Appears on top of the page, shows icon, name, description, and
+ * either the earned date or current XP progress.
+ */
 function Modal({
   open,
   onClose,
@@ -236,6 +261,14 @@ function Modal({
   )
 }
 
+/*
+ * Card view for a single achievement in the grid.
+ *
+ * - Shows icon, name, and earned/not-earned text.
+ * - For XP-based locked achievements, shows an animated progress bar.
+ * - Computes a visual “level” and ring colour based on current XP.
+ * - Clicking the card calls onClick (which opens the details modal).
+ */
 function BadgeCard({ a, onClick }: { a: Achievement; onClick: () => void }) {
   const earned = isEarned(a)
   const idNum = a.achievementId
