@@ -1,0 +1,43 @@
+"use client"
+
+import CodeSegment from "@/components/ui/codesegment";
+
+interface HintSectionProps {
+    hint: object
+}
+
+function HintSection (props: HintSectionProps) {
+
+    return (
+
+        <>
+
+            <div className="relative flex flex-col justify-center max-w-[450px] my-5 p-2 rounded-sm shadow-[0_10px_15px_-3px_rgba(0,0,0,0.3)]">
+
+                <div className="mt-5 text-center">
+                    <h3 className="font-bold text-black"> Hint {props.hint.hint_num}</h3>
+                </div>
+
+                <div>
+
+                    <CodeSegment code={props.hint.code} />
+
+                </div>
+
+                <div>
+
+                    <p className="text-black text-center"> {props.hint.feedback} </p>
+
+                </div>
+
+
+
+            </div>
+
+        </>
+
+    )
+
+}
+
+export default HintSection
